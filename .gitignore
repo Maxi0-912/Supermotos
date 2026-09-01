@@ -1,0 +1,29 @@
+# Entorno virtual de Python
+.venv/
+venv/
+
+# Variables de entorno (nunca subir secretos reales)
+.env
+
+# Base de datos local
+db.sqlite3
+*.sqlite3
+
+# Bytecode de Python
+__pycache__/
+*.pyc
+
+# Archivos subidos por usuarios (fotos de productos/motos)
+media/
+
+# Logs
+runserver.log
+*.log
+
+# Datos sensibles de demo
+CREDENCIALES_DEMO.txt
+
+# Editores / SO
+.vscode/
+.idea/
+.DS_Store

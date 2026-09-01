@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,7 +21,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '***SECRET_KEY-ROTADA-VER-VARIABLE-DE-ENTORNO***'
+# La clave real vive SOLO en la variable de entorno SECRET_KEY (local: en tu
+# shell o en un .env que NUNCA se commitea; en Railway: en sus Variables).
+# Este valor de respaldo es a propósito uno "inseguro" y genérico -- nunca
+# debe usarse en producción -- para que el proyecto igual arranque en un
+# entorno de desarrollo nuevo sin configuración extra.
+SECRET_KEY = os.environ.get(
+    'SECRET_KEY',
+    'django-insecure-solo-para-desarrollo-local-configura-SECRET_KEY-en-produccion',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -122,7 +131,6 @@ STATIC_URL = 'static/'
 
 
 # --- Configuración del proyecto SuperMotos ---
-import os
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
