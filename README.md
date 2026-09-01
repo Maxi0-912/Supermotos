@@ -3,6 +3,19 @@
 Backend para la página web y el bot del almacén, con inventario sincronizado
 desde **Celeste MIPYME** vía exportación a Excel.
 
+## ⚠️ Aviso de seguridad
+Un commit anterior de este repo expuso por error `db.sqlite3`, credenciales
+de demo y la `SECRET_KEY` en texto plano. Ese historial fue reescrito y las
+credenciales/clave quedaron rotadas — pero si clonaste el repo antes de esta
+limpieza, esos valores viejos deben tratarse como comprometidos. Ver
+`SECRET_KEY` en variable de entorno (abajo) y `.gitignore` para lo que nunca
+debe subirse.
+
+## Configuración
+La `SECRET_KEY` real vive en la variable de entorno `SECRET_KEY` (nunca en
+el código). En local puedes exportarla en tu shell o crear un `.env` (no se
+sube, está en `.gitignore`); en Railway se define en sus *Variables*.
+
 ## Arranque local
 ```bash
 pip install -r requirements.txt

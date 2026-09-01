@@ -13,7 +13,9 @@ python manage.py runserver
 ## 2. Ver el panel de administración (lo que usará Ana)
 Abre http://127.0.0.1:8000/admin/
 - Usuario: **admin**
-- Contraseña: *****PASSWORD-ROTADA*****
+- Contraseña: la que hayas definido con `python manage.py changepassword admin`
+  (la contraseña de demo anterior quedó expuesta públicamente y ya no es
+  válida — ver aviso de seguridad en el README).
 
 Ahí ves los 3.088 productos, las cotizaciones y citas que entran por el bot,
 y la pantalla "Actualizar inventario desde Celeste" para subir el Excel.
