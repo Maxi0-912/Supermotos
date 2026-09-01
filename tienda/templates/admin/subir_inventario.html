@@ -1,0 +1,10 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h2>Actualizar inventario desde Celeste</h2>
+<p>1. En Celeste abre <b>Productos</b> y toca el botón <b>Excel</b> para exportar.<br>
+   2. Sube aquí el archivo descargado y presiona <b>Importar</b>.</p>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}
+  {{ form.as_p }}
+  <input type="submit" value="Importar" class="default">
+</form>
+{% endblock %}

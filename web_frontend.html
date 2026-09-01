@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SuperMotos La 4ta  </title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --rojo:#E30613;
+    --rojo-osc:#B00510;
+    --rojo-glow:rgba(227,6,19,.35);
+    --negro:#17181C;
+    --grafito:#23252B;
+    --grafito2:#2B2D34;
+    --humo:#F4F4F6;
+    --gris:#6B7078;
+    --gris-claro:#9CA0A8;
+    --blanco:#FFFFFF;
+    --linea:#E6E7EA;
+    --verde:#0a7d43;
+    --verde-wa:#25D366;
+    --wa-teal:#075E54;
+    --wa-bubble-out:#DCF8C6;
+    --wa-bg:#ECE5DD;
+    --radio:14px;
+    --sombra:0 10px 30px rgba(17,18,22,.10);
+    --sombra-h:0 16px 40px rgba(17,18,22,.16);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{scroll-behavior:smooth}
+  body{font-family:'Inter',-apple-system,sans-serif;color:var(--negro);background:var(--blanco)}
+  h1,h2,h3,.display{font-family:'Inter',sans-serif;text-transform:uppercase;letter-spacing:.5px}
+  img{max-width:100%}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+  button:focus-visible, a:focus-visible, input:focus-visible{outline:2px solid var(--rojo);outline-offset:2px}
+
+  /* ===== ÍCONOS (Lucide) =====
+     Tamaño en `em` para que cada ícono herede el font-size de su contexto
+     (chip, botón, badge...) y quede proporcional automáticamente. El color
+     se hereda de currentColor, así toma el rojo/negro/blanco del elemento
+     que lo contiene sin reglas extra. */
+  .lucide{width:1em;height:1em;stroke-width:2.1;vertical-align:-0.16em;flex-shrink:0}
+  .btn .lucide, .qbtn .lucide, .card-body button .lucide, .serv-body button .lucide,
+  .nav-cta .lucide, .btn-wa .lucide, .btn-detalle .lucide{margin-right:2px}
+
+  /* ===== REVEAL ===== */
+  .reveal{opacity:0;transform:translateY(20px);transition:opacity .55s ease, transform .55s ease}
+  .reveal.in-view{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+
+  /* ===== NAV ===== */
+  nav{
+    position:sticky;top:0;z-index:200;background:rgba(23,24,28,.88);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    color:#fff;display:flex;align-items:center;justify-content:space-between;
+    padding:14px 20px;box-shadow:0 2px 16px rgba(0,0,0,.28);border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  .logo{display:flex;align-items:center;gap:10px;font-family:'Inter';font-weight:800;font-size:21px;text-transform:uppercase}
+  .logo-mark{
+    background:linear-gradient(145deg,var(--rojo),var(--rojo-osc));color:#fff;width:34px;height:34px;border-radius:8px;
+    display:flex;align-items:center;justify-content:center;font-size:20px;
+    transform:skewX(-8deg);box-shadow:0 4px 12px var(--rojo-glow);
+  }
+  .nav-links{display:flex;align-items:center;gap:24px;font-size:14.5px;font-weight:500}
+  .nav-links a{color:#cfd2d8;text-decoration:none;transition:color .15s;position:relative}
+  .nav-links a:hover{color:#fff}
+  .nav-cta{
+    background:var(--rojo);color:#fff!important;padding:9px 16px;border-radius:6px;
+    font-family:'Inter';font-weight:700;letter-spacing:.5px;text-transform:uppercase;font-size:13.5px;
+  }
+  .nav-cta:hover{background:var(--rojo-osc)!important}
+  .nav-burger{display:none;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1;padding:4px}
+  @media(max-width:760px){
+    .nav-links{
+      display:none;position:fixed;top:60px;left:0;right:0;background:var(--negro);
+      flex-direction:column;align-items:stretch;gap:0;padding:8px 20px 18px;
+      box-shadow:0 14px 26px rgba(0,0,0,.4);border-top:1px solid rgba(255,255,255,.08);
+    }
+    .nav-links.open{display:flex}
+    .nav-links a{padding:13px 4px;border-bottom:1px solid rgba(255,255,255,.08);font-size:16px}
+    .nav-cta{margin-top:10px;text-align:center}
+    .nav-burger{display:block}
+  }
+
+  /* ===== HERO ===== */
+  .hero{
+    position:relative;overflow:hidden;color:#fff;
+    background:
+      linear-gradient(115deg, rgba(20,21,25,.97) 0%, rgba(20,21,25,.97) 54%, rgba(35,37,43,.93) 54.4%, rgba(35,37,43,.93) 100%),
+      url('https://loremflickr.com/1400/1000/honda,motorcycle?lock=11') center/cover no-repeat;
+  }
+  .hero::after{
+    content:"";position:absolute;top:-40%;right:-8%;width:52%;height:180%;
+    background:linear-gradient(160deg,var(--rojo),var(--rojo-osc));transform:skewX(-14deg);opacity:.96;
+    box-shadow:-20px 0 60px rgba(227,6,19,.25);
+  }
+  .hero-inner{
+    position:relative;z-index:2;display:grid;grid-template-columns:1.2fr .8fr;
+    gap:30px;align-items:center;padding:76px 20px 84px;max-width:1120px;margin:0 auto;
+  }
+  .badge-live{
+    display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.18);padding:6px 14px 6px 10px;border-radius:30px;
+    font-size:13px;font-weight:600;color:#e8e9ec;margin-bottom:18px;backdrop-filter:blur(4px);
+  }
+  .badge-live .dot-live{width:8px;height:8px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 0 rgba(61,220,132,.6);animation:pulso 1.8s infinite}
+  @keyframes pulso{0%{box-shadow:0 0 0 0 rgba(61,220,132,.55)}70%{box-shadow:0 0 0 9px rgba(61,220,132,0)}100%{box-shadow:0 0 0 0 rgba(61,220,132,0)}}
+  .hero h1{font-size:clamp(38px,6vw,64px);font-weight:800;line-height:.98}
+  .hero h1 em{color:var(--rojo);font-style:normal;text-shadow:0 0 26px var(--rojo-glow)}
+  .hero p{margin-top:16px;font-size:17px;color:#c9ccd3;max-width:460px;line-height:1.6}
+  .hero-ctas{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;
+    font-family:'Inter';font-weight:700;font-size:17px;text-transform:uppercase;
+    letter-spacing:.8px;padding:14px 28px;border-radius:7px;text-decoration:none;
+    transition:transform .12s, box-shadow .12s, background .15s;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn-rojo{background:var(--rojo);color:#fff;box-shadow:0 8px 22px var(--rojo-glow)}
+  .btn-rojo:hover{background:var(--rojo-osc);box-shadow:0 10px 26px var(--rojo-glow)}
+  .btn-linea{background:rgba(255,255,255,.05);color:#fff;border:2px solid rgba(255,255,255,.35);backdrop-filter:blur(4px)}
+  .btn-linea:hover{border-color:#fff;background:rgba(255,255,255,.1)}
+  .hero-stats{position:relative;z-index:2;display:flex;flex-direction:column;gap:14px;color:#fff}
+  .stat{
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-left:4px solid #fff;
+    padding:15px 18px;backdrop-filter:blur(6px);border-radius:0 10px 10px 0;
+    display:flex;align-items:center;gap:14px;transition:transform .15s;
+  }
+  .stat:hover{transform:translateX(4px)}
+  .stat .stat-ico{font-size:24px}
+  .stat b{font-family:'Inter';font-size:26px;display:block;line-height:1}
+  .stat span{font-size:13.5px;opacity:.85}
+  @media(max-width:760px){
+    .hero-inner{grid-template-columns:1fr;padding:52px 20px 60px}
+    .hero::after{width:80%;opacity:.5}
+  }
+
+  /* franja ticker */
+  .ticker{
+    background:linear-gradient(90deg,var(--rojo-osc),var(--rojo));color:#fff;overflow:hidden;white-space:nowrap;
+    font-family:'Inter';font-weight:700;font-size:15px;letter-spacing:1.2px;
+    text-transform:uppercase;padding:10px 0;box-shadow:inset 0 2px 8px rgba(0,0,0,.15);
+  }
+  .ticker-track{display:inline-block;animation:mueve 24s linear infinite}
+  .ticker:hover .ticker-track,.ticker:focus-within .ticker-track{animation-play-state:paused}
+  @keyframes mueve{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  @media(prefers-reduced-motion:reduce){.ticker-track{animation:none}}
+  .ticker span{margin:0 26px}
+  .ticker-track a{color:inherit;text-decoration:none;transition:opacity .15s}
+  .ticker-track a:hover,.ticker-track a:focus-visible{opacity:.75;text-decoration:underline}
+
+  /* ===== SECCIONES ===== */
+  section{padding:68px 0}
+  .sec-head{margin-bottom:30px;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  .sec-head .eyebrow{
+    color:var(--rojo);font-family:'Inter';font-weight:700;
+    letter-spacing:2.5px;font-size:14px;text-transform:uppercase;
+  }
+  .sec-head h2{font-size:clamp(28px,4vw,40px);font-weight:800;margin-top:4px}
+
+  /* chips filtro */
+  .chips{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:26px}
+  .chip{
+    background:var(--humo);border:1.5px solid var(--linea);color:var(--negro);
+    padding:9px 17px;border-radius:30px;font-size:13.5px;font-weight:600;cursor:pointer;
+    transition:all .15s;font-family:'Inter',sans-serif;
+  }
+  .chip:hover{border-color:var(--rojo);color:var(--rojo)}
+  .chip.active{background:var(--negro);border-color:var(--negro);color:#fff}
+
+  /* catálogo */
+  .grid-cat{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:20px}
+  .card{
+    border:1px solid var(--linea);border-radius:var(--radio);overflow:hidden;background:#fff;
+    display:flex;flex-direction:column;transition:box-shadow .2s, transform .2s;
+  }
+  .card:hover{box-shadow:var(--sombra-h);transform:translateY(-4px)}
+  .card-img{
+    height:160px;position:relative;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .card-img img{width:100%;height:100%;transition:transform .35s}
+  .card:hover .card-img img{transform:scale(1.06)}
+  .card-img .tag{
+    position:absolute;top:10px;left:10px;background:rgba(23,24,28,.85);color:#fff;
+    font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;letter-spacing:.5px;z-index:2;
+    backdrop-filter:blur(3px);
+  }
+  .card-img .tag-stock{
+    position:absolute;top:10px;right:10px;background:var(--rojo);color:#fff;
+    font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:20px;letter-spacing:.3px;z-index:2;
+    text-transform:uppercase;
+  }
+
+  /* placa de producto (cuando Ana todavía no eligió una foto) */
+  .placa{
+    width:100%;height:100%;position:relative;overflow:hidden;
+    background:linear-gradient(150deg,#eef0f3 0%,#e2e4e9 100%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:8px;padding:16px;text-align:center;
+  }
+  .placa-marca{
+    position:absolute;top:10px;left:10px;background:var(--negro);color:#fff;
+    font-size:10px;font-weight:700;letter-spacing:.6px;padding:3px 9px;border-radius:20px;
+    text-transform:uppercase;font-family:'Inter';z-index:2;
+  }
+  .placa-watermark{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:'Inter';font-weight:800;font-size:44px;color:rgba(23,24,28,.055);
+    text-transform:uppercase;letter-spacing:2px;white-space:nowrap;transform:rotate(-9deg);z-index:0;
+  }
+  .placa-nombre{
+    font-family:'Inter';font-weight:800;font-size:19px;line-height:1.08;
+    color:#41444c;text-transform:uppercase;letter-spacing:.2px;position:relative;z-index:1;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .placa-ref{
+    font-size:10.5px;color:#888e98;background:rgba(255,255,255,.75);padding:2px 10px;
+    border-radius:20px;font-weight:600;letter-spacing:.3px;position:relative;z-index:1;
+  }
+  /* versión chiquita para las miniaturas del chat (54x54) */
+  .foto-tile .placa{padding:4px;gap:0}
+  .foto-tile .placa-marca,.foto-tile .placa-watermark,.foto-tile .placa-ref{display:none}
+  .foto-tile .placa-nombre{font-size:8px;line-height:1.1;-webkit-line-clamp:4;color:#565a62}
+
+  .card-body{padding:15px 16px 17px;display:flex;flex-direction:column;gap:4px;flex:1}
+  .card-body h3{font-size:18.5px;font-weight:700;line-height:1.2}
+  .card-body .ref{font-size:12.5px;color:var(--gris)}
+  .card-body .precio{
+    font-family:'Inter';font-weight:800;font-size:25px;color:var(--rojo);margin-top:6px;
+  }
+  .card-body .stock{font-size:12.5px;color:var(--verde);font-weight:600}
+  .card-body button{
+    margin-top:12px;background:var(--negro);color:#fff;border:none;border-radius:7px;
+    padding:11px;font-family:'Inter';font-weight:700;font-size:15px;
+    letter-spacing:.8px;text-transform:uppercase;cursor:pointer;transition:background .15s;
+  }
+  .card-body button:hover{background:var(--rojo)}
+  .grid-cat-empty{grid-column:1/-1;text-align:center;padding:40px 0;color:var(--gris);font-size:15px}
+
+  /* motos (producto premium: concesionario) */
+  .grid-motos{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:24px}
+  .moto-card{
+    border:1px solid var(--linea);border-radius:16px;overflow:hidden;background:#fff;
+    display:flex;flex-direction:column;transition:box-shadow .2s, transform .2s;
+  }
+  .moto-card:hover{box-shadow:var(--sombra-h);transform:translateY(-4px)}
+  .moto-img{height:220px;position:relative;overflow:hidden;background:var(--humo)}
+  .moto-img img{width:100%;height:100%;object-fit:cover;transition:transform .35s}
+  .moto-card:hover .moto-img img{transform:scale(1.05)}
+  .moto-destacada{
+    position:absolute;top:12px;right:12px;background:linear-gradient(120deg,#f5b301,#d99400);
+    color:#1a1a1a;font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:20px;z-index:2;
+    letter-spacing:.3px;box-shadow:0 3px 10px rgba(217,148,0,.35);
+  }
+  .moto-body{padding:20px 22px 22px;display:flex;flex-direction:column;gap:8px;flex:1}
+  .moto-meta{display:flex;gap:8px;flex-wrap:wrap}
+  .moto-chip{
+    background:var(--humo);color:var(--gris);font-size:11.5px;font-weight:600;
+    padding:4px 11px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px;
+  }
+  .moto-body h3{font-size:24px;font-weight:800;font-family:'Inter';text-transform:uppercase;margin-top:2px}
+  .moto-precio{font-family:'Inter';font-weight:800;font-size:32px;color:var(--rojo)}
+  .moto-desc{
+    font-size:13.5px;color:var(--gris);line-height:1.55;max-height:0;overflow:hidden;
+    transition:max-height .3s ease;margin:0;
+  }
+  .moto-desc.open{max-height:200px}
+  .moto-ctas{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .btn-wa{
+    display:flex;align-items:center;justify-content:center;gap:8px;background:var(--verde-wa);color:#fff;
+    border:none;border-radius:8px;padding:13px;font-family:'Inter';font-weight:700;font-size:16px;
+    letter-spacing:.5px;text-transform:uppercase;text-decoration:none;cursor:pointer;transition:background .15s;
+  }
+  .btn-wa:hover{background:#1fb355}
+  .btn-detalle{
+    background:transparent;border:1.5px solid var(--linea);color:var(--negro);border-radius:8px;
+    padding:11px;font-family:'Inter';font-weight:700;font-size:14.5px;letter-spacing:.5px;
+    text-transform:uppercase;cursor:pointer;transition:border-color .15s,color .15s;
+  }
+  .btn-detalle:hover{border-color:var(--negro)}
+
+  /* taller */
+  .taller{background:var(--negro);color:#fff}
+  .taller .sec-head h2{color:#fff}
+  .taller .sec-head p{color:#b9bdc5;max-width:420px;font-size:14.5px}
+  .grid-serv{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px}
+  .serv{
+    background:var(--grafito);border-radius:12px;overflow:hidden;
+    border-top:3px solid var(--rojo);display:flex;flex-direction:column;
+    transition:transform .18s, box-shadow .18s;
+  }
+  .serv:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(0,0,0,.35)}
+  @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .serv-img{
+    height:130px;background:linear-gradient(100deg,#33353c 30%,#3d3f47 50%,#33353c 70%);
+    background-size:200% 100%;animation:shimmer 1.6s infinite linear;background-position:center;
+  }
+  .serv-img img{width:100%;height:100%;object-fit:cover;display:block}
+  .serv-body{padding:20px 20px 22px;display:flex;flex-direction:column;gap:8px;flex:1}
+  .serv-body .ico{font-size:26px}
+  .serv-body h3{font-size:20px}
+  .serv-body p{font-size:14px;color:#b9bdc5;line-height:1.5;flex:1}
+  .serv-body button{
+    align-self:flex-start;background:transparent;border:1.5px solid var(--rojo);color:#fff;
+    border-radius:6px;padding:9px 18px;font-family:'Inter';font-weight:700;
+    letter-spacing:.8px;font-size:14px;text-transform:uppercase;cursor:pointer;transition:background .15s;
+  }
+  .serv-body button:hover{background:var(--rojo)}
+
+  /* diferenciales */
+  .grid-dif{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px}
+  .dif{display:flex;gap:14px;align-items:flex-start}
+  .dif .ico{
+    background:var(--humo);border-radius:10px;width:50px;height:50px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:22px;
+  }
+  .dif h3{font-size:18px;margin-bottom:3px}
+  .dif p{font-size:14px;color:var(--gris);line-height:1.5}
+
+  .galeria{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:38px}
+  .galeria img{width:100%;height:170px;object-fit:cover;border-radius:12px;box-shadow:var(--sombra);transition:transform .25s}
+  .galeria img:hover{transform:scale(1.03)}
+  @media(max-width:760px){.galeria{grid-template-columns:repeat(2,1fr)}}
+
+  /* footer */
+  footer{background:var(--negro);color:#aeb2ba;padding:48px 0 90px;font-size:14px}
+  footer .wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:26px}
+  footer h4{color:#fff;font-family:'Inter';font-size:18px;text-transform:uppercase;margin-bottom:10px;letter-spacing:1px}
+  footer a{color:#aeb2ba;text-decoration:none}
+  footer a:hover{color:#fff}
+  footer p{line-height:1.7}
+  .socials{display:flex;gap:10px;margin-top:12px}
+  .socials a{
+    width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+    display:flex;align-items:center;justify-content:center;font-size:16px;transition:background .15s, transform .15s;
+  }
+  .socials a:hover{background:var(--rojo);transform:translateY(-2px)}
+  .footer-demo{margin-top:26px;text-align:center;grid-column:1/-1;font-size:12px;color:#6b7078}
+
+  /* ===== WIDGET DE CHAT ===== */
+  .chat-fab{
+    position:fixed;bottom:22px;right:22px;z-index:100;
+    width:62px;height:62px;border-radius:50%;border:none;cursor:pointer;
+    background:linear-gradient(145deg,#2fe07a,var(--verde-wa));color:#fff;font-size:30px;
+    box-shadow:0 8px 24px rgba(0,0,0,.32);
+    display:flex;align-items:center;justify-content:center;
+    transition:transform .15s;
+  }
+  .chat-fab:hover{transform:scale(1.07)}
+  .chat-fab .dot{
+    position:absolute;top:2px;right:2px;background:var(--rojo);color:#fff;
+    font-size:11px;font-weight:700;width:20px;height:20px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;border:2px solid #fff;
+    font-family:'Inter',sans-serif;
+  }
+  .chat-panel{
+    position:fixed;bottom:96px;right:22px;z-index:100;
+    width:min(390px, calc(100vw - 28px));height:min(580px, calc(100dvh - 130px));
+    background:var(--wa-bg);border-radius:16px;overflow:hidden;
+    box-shadow:0 18px 50px rgba(0,0,0,.4);
+    display:none;flex-direction:column;
+    animation:sube .22s ease-out;
+  }
+  .chat-panel.open{display:flex}
+  @keyframes sube{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @media(max-width:480px){
+    .chat-panel{bottom:0;right:0;width:100vw;height:100dvh;border-radius:0}
+  }
+  .cp-head{
+    background:linear-gradient(120deg,var(--wa-teal),#0a6e5f);color:#fff;display:flex;align-items:center;gap:10px;
+    padding:12px 14px;flex-shrink:0;
+  }
+  .cp-avatar{
+    width:40px;height:40px;border-radius:50%;background:linear-gradient(145deg,var(--rojo),var(--rojo-osc));
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;
+    border:2px solid rgba(255,255,255,.35);font-family:'Inter';
+  }
+  .cp-info{flex:1;min-width:0}
+  .cp-name{font-weight:600;font-size:15px}
+  .cp-status{font-size:12px;opacity:.85}
+  .cp-close{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;opacity:.85;padding:4px 8px}
+  .cp-chat{
+    flex:1;overflow-y:auto;padding:12px 10px 8px;display:flex;flex-direction:column;gap:6px;
+    background-image:radial-gradient(rgba(0,0,0,.05) 1.2px, transparent 1.2px);
+    background-size:20px 20px;
+  }
+  .day-chip{
+    align-self:center;background:#E1F2FA;color:#54656F;font-size:11.5px;
+    padding:4px 11px;border-radius:8px;margin-bottom:4px;box-shadow:0 1px 1px rgba(0,0,0,.08);
+  }
+  .msg{
+    max-width:88%;padding:7px 9px 6px;border-radius:10px;font-size:13.8px;line-height:1.4;
+    box-shadow:0 1px 1px rgba(0,0,0,.10);animation:pop .18s ease-out;
+    white-space:pre-wrap;word-wrap:break-word;color:#111B21;
+  }
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .in{align-self:flex-start;background:#fff;border-top-left-radius:2px}
+  .out{align-self:flex-end;background:var(--wa-bubble-out);border-top-right-radius:2px}
+  .msg .meta{display:inline-flex;gap:3px;float:right;margin:8px -2px -2px 8px;font-size:10.5px;color:#667781}
+  .msg .check{color:#53BDEB}
+  .msg b{font-weight:600}
+  .msg .price{color:var(--verde);font-weight:700}
+  .msg .divider{display:block;border-top:1px solid rgba(0,0,0,.08);margin:6px 0}
+  .chat-prod{display:flex;gap:9px;padding:5px 0;align-items:flex-start}
+  .chat-prod .foto-tile{
+    width:54px;height:54px;border-radius:9px;flex-shrink:0;overflow:hidden;background:#eee;
+  }
+  .chat-prod .foto-tile img{width:100%;height:100%;object-fit:cover;display:block}
+  .chat-prod .info{flex:1;min-width:0;line-height:1.42}
+  .typing{
+    align-self:flex-start;background:#fff;border-radius:10px;border-top-left-radius:2px;
+    padding:11px 13px;display:flex;gap:4px;box-shadow:0 1px 1px rgba(0,0,0,.10);
+  }
+  .typing span{width:7px;height:7px;border-radius:50%;background:#9aa5ad;animation:blink 1.2s infinite}
+  .typing span:nth-child(2){animation-delay:.2s}
+  .typing span:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,60%,100%{opacity:.3}30%{opacity:1}}
+  .btn-group{display:flex;flex-direction:column;gap:5px;align-self:flex-start;width:255px;max-width:88%}
+  .qbtn{
+    background:#fff;border:none;border-radius:10px;padding:9px 12px;color:#027EB5;
+    font-size:13.5px;font-weight:500;cursor:pointer;box-shadow:0 1px 1px rgba(0,0,0,.10);
+    text-align:center;font-family:'Inter',sans-serif;animation:pop .18s ease-out;transition:background .1s;
+  }
+  .qbtn:hover{background:#f5fbff}
+  .qbtn:active{background:#eaf6fc}
+  .cp-foot{display:flex;gap:6px;padding:8px 8px;flex-shrink:0}
+  .cp-pill{
+    flex:1;display:flex;align-items:center;gap:7px;background:#fff;border-radius:24px;
+    padding:9px 14px;box-shadow:0 1px 2px rgba(0,0,0,.1);border:1.5px solid transparent;transition:border-color .15s;
+  }
+  .cp-pill:focus-within{border-color:var(--verde-wa)}
+  .cp-pill input{flex:1;border:none;outline:none;font-size:14px;font-family:'Inter',sans-serif;background:transparent}
+  .cp-send{
+    width:42px;height:42px;border-radius:50%;border:none;background:var(--wa-teal);color:#fff;
+    font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    transition:transform .1s, background .15s;
+  }
+  .cp-send:hover{background:#0a6e5f}
+  .cp-send:active{transform:scale(.92)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo"><div class="logo-mark">H</div> SuperMotos <span style="color:var(--rojo)">La 4ta</span></div>
+  <button class="nav-burger" id="burger" aria-label="Abrir menú"><i data-lucide="menu" class="lucide"></i></button>
+  <div class="nav-links" id="navLinks">
+    <a href="#motos">Motos</a>
+    <a href="#catalogo">Repuestos</a>
+    <a href="#taller">Taller</a>
+    <a href="#nosotros">Nosotros</a>
+    <a href="#contacto">Contacto</a>
+    <a href="#" class="nav-cta" onclick="abrirChat();return false;"><i data-lucide="message-circle" class="lucide"></i> Cotizar</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="badge-live"><span class="dot-live"></span> Asistente virtual activo ahora</div>
+      <h1>Repuestos <em>originales</em><br>para tu Honda</h1>
+      <p>Almacén y taller especializado en Popayán. Consulta disponibilidad, cotiza y agenda tu cita de taller al instante con nuestro asistente virtual, disponible 24/7.</p>
+      <div class="hero-ctas">
+        <button class="btn btn-rojo" onclick="abrirChat()"><i data-lucide="message-circle" class="lucide"></i> Cotizar por chat</button>
+        <a class="btn btn-linea" href="#catalogo">Ver repuestos</a>
+      </div>
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><span class="stat-ico"><i data-lucide="check-circle" class="lucide"></i></span><div><b>100%</b><span>Repuestos originales Honda</span></div></div>
+      <div class="stat"><span class="stat-ico"><i data-lucide="clock" class="lucide"></i></span><div><b>24/7</b><span>Cotizaciones por chat, sin esperas</span></div></div>
+      <div class="stat"><span class="stat-ico"><i data-lucide="bike" class="lucide"></i></span><div><b>+15 años</b><span>De experiencia en mecánica de motos</span></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="ticker">
+  <div class="ticker-track">
+    <span><a href="#motos">CB160F DLX</a></span>•<span><a href="#motos">XR150L</a></span>•<span><a href="#motos">CB190R</a></span>•<span><a href="#motos">CB125F MAX</a></span>•<span><a href="#motos">NAVI</a></span>•<span><a href="#motos">XR190L</a></span>•<span><a href="#catalogo">REPUESTOS ORIGINALES</a></span>•<span><a href="#taller">TALLER ESPECIALIZADO</a></span>•
+    <span><a href="#motos">CB160F DLX</a></span>•<span><a href="#motos">XR150L</a></span>•<span><a href="#motos">CB190R</a></span>•<span><a href="#motos">CB125F MAX</a></span>•<span><a href="#motos">NAVI</a></span>•<span><a href="#motos">XR190L</a></span>•<span><a href="#catalogo">REPUESTOS ORIGINALES</a></span>•<span><a href="#taller">TALLER ESPECIALIZADO</a></span>•
+  </div>
+</div>
+
+<section id="motos">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div>
+        <div class="eyebrow">Concesionario oficial</div>
+        <h2>Nuestras Motos</h2>
+      </div>
+    </div>
+    <div class="grid-motos" id="gridMotos"></div>
+  </div>
+</section>
+
+<section id="catalogo">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div>
+        <div class="eyebrow">Catálogo destacado</div>
+        <h2>Repuestos disponibles</h2>
+      </div>
+    </div>
+    <div class="chips" id="chips">
+      <button class="chip active" onclick="filtrar('', this)"><i data-lucide="layout-grid" class="lucide"></i> Todos</button>
+      <button class="chip" onclick="filtrar('frenos', this)"><i data-lucide="disc" class="lucide"></i> Frenos</button>
+      <button class="chip" onclick="filtrar('filtros', this)"><i data-lucide="filter" class="lucide"></i> Filtros</button>
+      <button class="chip" onclick="filtrar('aceites', this)"><i data-lucide="droplet" class="lucide"></i> Aceites</button>
+      <button class="chip" onclick="filtrar('electrico', this)"><i data-lucide="zap" class="lucide"></i> Eléctrico</button>
+      <button class="chip" onclick="filtrar('transmision', this)"><i data-lucide="settings" class="lucide"></i> Transmisión</button>
+      <button class="chip" onclick="filtrar('llantas', this)"><i data-lucide="circle-dashed" class="lucide"></i> Llantas</button>
+    </div>
+    <div class="grid-cat" id="gridCatalogo"></div>
+  </div>
+</section>
+
+<section class="taller" id="taller">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div>
+        <div class="eyebrow">Servicio técnico</div>
+        <h2>Taller especializado</h2>
+        <p>Mecánicos con experiencia real en Honda, no solo vendedores de mostrador.</p>
+      </div>
+    </div>
+    <div class="grid-serv">
+      <div class="serv reveal">
+        <div class="serv-img"><img src="https://loremflickr.com/300/160/motorcycle,mechanic?lock=21" loading="lazy" alt="Mantenimiento general" onerror="this.parentElement.style.background='#33353c'"></div>
+        <div class="serv-body"><div class="ico"><i data-lucide="wrench" class="lucide"></i></div><h3>Mantenimiento general</h3><p>Revisión completa de tu moto: motor, transmisión, suspensión y sistema eléctrico.</p><button onclick="abrirCita('Mantenimiento general')">Agendar</button></div>
+      </div>
+      <div class="serv reveal">
+        <div class="serv-img"><img src="https://loremflickr.com/300/160/motor,oil,motorcycle?lock=6" loading="lazy" alt="Cambio de aceite" onerror="this.parentElement.style.background='#33353c'"></div>
+        <div class="serv-body"><div class="ico"><i data-lucide="droplet" class="lucide"></i></div><h3>Cambio de aceite y filtro</h3><p>Aceite original Honda HP4 y filtros genuinos. Servicio en menos de 40 minutos.</p><button onclick="abrirCita('Cambio de aceite y filtro')">Agendar</button></div>
+      </div>
+      <div class="serv reveal">
+        <div class="serv-img"><img src="https://loremflickr.com/300/160/motorcycle,brake?lock=23" loading="lazy" alt="Revisión de frenos" onerror="this.parentElement.style.background='#33353c'"></div>
+        <div class="serv-body"><div class="ico"><i data-lucide="disc" class="lucide"></i></div><h3>Revisión de frenos</h3><p>Pastillas, discos, líquido de frenos y calibración para tu seguridad en la vía.</p><button onclick="abrirCita('Revisión de frenos')">Agendar</button></div>
+      </div>
+      <div class="serv reveal">
+        <div class="serv-img"><img src="https://loremflickr.com/300/160/motorcycle,carburetor?lock=9" loading="lazy" alt="Diagnóstico de inyección" onerror="this.parentElement.style.background='#33353c'"></div>
+        <div class="serv-body"><div class="ico"><i data-lucide="activity" class="lucide"></i></div><h3>Diagnóstico de inyección</h3><p>Escaneo electrónico de la ECU y diagnóstico de fallas en motos con inyección.</p><button onclick="abrirCita('Diagnóstico de inyección')">Agendar</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="nosotros">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div>
+        <div class="eyebrow">¿Por qué nosotros?</div>
+        <h2>Más que un almacén</h2>
+      </div>
+    </div>
+    <div class="grid-dif">
+      <div class="dif reveal"><div class="ico"><i data-lucide="shield-check" class="lucide"></i></div><div><h3>Garantía real</h3><p>Todos nuestros repuestos son originales Honda con garantía de fábrica.</p></div></div>
+      <div class="dif reveal"><div class="ico"><i data-lucide="users" class="lucide"></i></div><div><h3>Asesoría de mecánicos</h3><p>Te asesoran técnicos con experiencia real en moto, no solo vendedores.</p></div></div>
+      <div class="dif reveal"><div class="ico"><i data-lucide="message-circle" class="lucide"></i></div><div><h3>Cotización inmediata</h3><p>Nuestro asistente virtual te responde precios y disponibilidad al instante.</p></div></div>
+      <div class="dif reveal"><div class="ico"><i data-lucide="truck" class="lucide"></i></div><div><h3>Entrega a domicilio</h3><p>Envío de repuestos en Popayán el mismo día para pedidos antes de las 3 pm.</p></div></div>
+    </div>
+    <div class="galeria reveal">
+      <img src="https://loremflickr.com/400/300/motorcycle,workshop?lock=31" loading="lazy" alt="Taller SuperMotos" onerror="this.style.display='none'">
+      <img src="https://loremflickr.com/400/300/motorcycle,mechanic?lock=32" loading="lazy" alt="Mecánico trabajando" onerror="this.style.display='none'">
+      <img src="https://loremflickr.com/400/300/motorcycle,spareparts?lock=33" loading="lazy" alt="Repuestos en estantería" onerror="this.style.display='none'">
+      <img src="https://loremflickr.com/400/300/honda,motorcycle?lock=13" loading="lazy" alt="Moto Honda" onerror="this.style.display='none'">
+    </div>
+  </div>
+</section>
+
+<footer id="contacto">
+  <div class="wrap">
+    <div>
+      <h4>SuperMotos La 4ta</h4>
+      <p>Repuestos originales y taller especializado en motocicletas Honda.</p>
+      <div class="socials">
+        <a href="#" aria-label="WhatsApp" onclick="return false;" style="color:var(--verde-wa)"><i data-lucide="message-circle" class="lucide"></i></a>
+        <a href="#" aria-label="Instagram" onclick="return false;"><i data-lucide="camera" class="lucide"></i></a>
+        <a href="#" aria-label="Facebook" onclick="return false;"><i data-lucide="thumbs-up" class="lucide"></i></a>
+      </div>
+    </div>
+    <div>
+      <h4>Contacto</h4>
+      <p><i data-lucide="map-pin" class="lucide"></i> Popayán, Cauca<br><i data-lucide="phone" class="lucide"></i> (60x) xxx xx xx<br><i data-lucide="message-circle" class="lucide"></i> WhatsApp: 3xx xxx xxxx</p>
+    </div>
+    <div>
+      <h4>Horario</h4>
+      <p>Lunes a sábado<br>8:00 am – 6:00 pm<br><b style="color:#fff">Asistente virtual: 24/7</b></p>
+    </div>
+    <div class="footer-demo"><i data-lucide="triangle-alert" class="lucide"></i> Sitio de demostración — Los productos, precios, datos de contacto y fotografías (referenciales, no de los productos reales) son de ejemplo.</div>
+  </div>
+</footer>
+
+<!-- ===== WIDGET DE CHAT ===== -->
+<button class="chat-fab" id="fab" onclick="toggleChat()" aria-label="Abrir chat"><i data-lucide="message-circle" class="lucide"></i><span class="dot" id="fabDot">1</span></button>
+<div class="chat-panel" id="panel">
+  <div class="cp-head">
+    <div class="cp-avatar">H</div>
+    <div class="cp-info">
+      <div class="cp-name">Asistente SuperMotos <i data-lucide="bike" class="lucide"></i></div>
+      <div class="cp-status" id="status">en línea</div>
+    </div>
+    <button class="cp-close" onclick="toggleChat()" aria-label="Cerrar chat"><i data-lucide="x" class="lucide"></i></button>
+  </div>
+  <div class="cp-chat" id="chat"><div class="day-chip">Hoy</div></div>
+  <div class="cp-foot">
+    <div class="cp-pill">
+      <span style="opacity:.5"><i data-lucide="smile" class="lucide"></i></span>
+      <input id="inp" type="text" placeholder="Escribe un mensaje" autocomplete="off">
+    </div>
+    <button class="cp-send" id="sendBtn" aria-label="Enviar mensaje"><i data-lucide="send" class="lucide"></i></button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+/* ==================================================================
+   CONFIGURACIÓN
+   Esta página la sirve Django en la raíz ("/"), en el MISMO puerto que
+   la API (ver supermotos_backend/urls.py -> vista `frontend`). Por eso
+   API_URL se deja vacío: las llamadas fetch usan ruta relativa
+   ("/api/productos/...") y resuelven contra el propio origen, sin CORS
+   ni depender de a qué puerto quedó pegado el backend.
+   USAR_DEMO controla si se usa el inventario de ejemplo (solo para abrir
+   el HTML suelto, con doble clic o Live Server, sin backend corriendo).
+   ================================================================== */
+const API_URL = "";        // "" = mismo origen (recomendado). Solo pon una URL absoluta para apuntar a otro backend (ej. Railway en producción).
+const USAR_DEMO = false;   // true = usar INVENTARIO de ejemplo en vez del backend real
+
+/* ================= DATOS DEMO (solo si no hay API) ================= */
+const INVENTARIO = [
+  {id:1, nombre:"Kit de arrastre", ref:"06406-KYJ-900", modelo:"CB160F DLX", precio:138000, stock:6},
+  {id:2, nombre:"Pastillas freno delanteras", ref:"06455-KYJ-901", modelo:"CB160F DLX", precio:42000, stock:12},
+  {id:3, nombre:"Filtro de aire", ref:"17210-KRE-D20", modelo:"XR150L", precio:29500, stock:9},
+  {id:4, nombre:"Bujía NGK CPR8EA-9", ref:"31916-KRM-841", modelo:"Varios modelos", precio:18500, stock:25},
+  {id:5, nombre:"Aceite Honda HP4 20W-50", ref:"HP4-20W50-1L", modelo:"Todos", precio:34000, stock:40},
+  {id:6, nombre:"Bomba de gasolina", ref:"16700-K56-N01", modelo:"CB190R", precio:185000, stock:3},
+  {id:7, nombre:"Kit cilindro completo", ref:"12100-KRE-D00", modelo:"XR150L", precio:265000, stock:2},
+  {id:8, nombre:"Llanta trasera 100/80-17", ref:"42711-KYJ-D01", modelo:"CB160F DLX", precio:158000, stock:5},
+];
+const SERVICIOS = [
+  {clave:"mantenimiento", nombre:"Mantenimiento general"},
+  {clave:"aceite", nombre:"Cambio de aceite y filtro"},
+  {clave:"frenos", nombre:"Revisión de frenos"},
+  {clave:"inyeccion", nombre:"Diagnóstico de inyección"},
+];
+const HORAS = ["8:00 AM","10:00 AM","2:00 PM","4:00 PM"];
+const fmt = n => "$" + Math.round(n).toLocaleString("es-CO");
+
+/* ================= PLACA DE PRODUCTO (sin foto elegida) =================
+   Ana elige a mano la foto de cada producto desde el admin (imagen subida
+   o URL pegada tras buscarla en Google Imágenes). Nada se asigna solo.
+   Mientras un producto no tenga foto, se muestra esta "placa" tipo tienda
+   online — marca, nombre grande y referencia — en vez de íconos o dibujos
+   técnicos que podrían no corresponder al producto real. */
+function placaHtml(p){
+  const marca = esc((p.marca || "Honda").toUpperCase());
+  const cat = esc((p.categoria || "").toUpperCase());
+  return `<div class="placa">
+    <span class="placa-marca">${marca}</span>
+    ${cat ? `<span class="placa-watermark">${cat}</span>` : ""}
+    <span class="placa-nombre">${esc(p.nombre)}</span>
+    ${p.ref ? `<span class="placa-ref">${esc(p.ref)}</span>` : ""}
+  </div>`;
+}
+
+/* ================= CAPA DE API ================= */
+function mapProducto(p){
+  return {id:p.id, nombre:p.nombre, ref:p.referencia || p.codigo_celeste,
+          modelo:p.modelos_compatibles || p.categoria || "Honda",
+          categoria:p.categoria || "", marca:p.marca || "Honda",
+          precio:parseFloat(p.precio), stock:p.stock,
+          foto: p.foto || null};  // foto elegida por Ana en el admin; null = mostrar placa
+}
+async function apiBuscar(q){
+  if(USAR_DEMO){
+    const t = q.toLowerCase();
+    return INVENTARIO.filter(p =>
+      (p.nombre+" "+p.modelo+" "+p.ref).toLowerCase().includes(t) ||
+      t.split(" ").every(w => (p.nombre+" "+p.modelo).toLowerCase().includes(w)));
+  }
+  try{
+    const r = await fetch(`${API_URL}/api/productos/?buscar=${encodeURIComponent(q)}&con_stock=1`);
+    return (await r.json()).map(mapProducto);
+  }catch(e){ console.error(e); return []; }
+}
+async function apiCatalogo(){
+  if(USAR_DEMO) return INVENTARIO;
+  try{
+    const r = await fetch(`${API_URL}/api/productos/?con_stock=1`);
+    return (await r.json()).slice(0,8).map(mapProducto);
+  }catch(e){ console.error(e); return []; }
+}
+const CHIP_KEYWORDS_DEMO = {
+  frenos:["freno","pastilla","banda","disco","zapata"],
+  filtros:["filtro"],
+  aceites:["aceite","lubricante"],
+  electrico:["bujia","bateria","cdi","bobina","farol","direccional","stop"],
+  transmision:["arrastre","cadena","piñon","sprocket","clutch","embrague","corona"],
+  llantas:["llanta","neumatico","rin","caucho","tubo"],
+};
+async function apiPorCategoria(cat){
+  if(USAR_DEMO){
+    const palabras = CHIP_KEYWORDS_DEMO[cat] || [];
+    return INVENTARIO.filter(p => palabras.some(w => p.nombre.toLowerCase().includes(w)));
+  }
+  try{
+    const r = await fetch(`${API_URL}/api/productos/?categoria=${encodeURIComponent(cat)}&con_stock=1`);
+    return (await r.json()).map(mapProducto);
+  }catch(e){ console.error(e); return []; }
+}
+async function apiCrearCotizacion(datos){
+  if(USAR_DEMO) return {id: 42};
+  const r = await fetch(`${API_URL}/api/cotizaciones/`, {method:"POST",
+    headers:{"Content-Type":"application/json"}, body:JSON.stringify(datos)});
+  return await r.json();
+}
+async function apiCrearCita(datos){
+  if(USAR_DEMO) return {ok:true};
+  const r = await fetch(`${API_URL}/api/citas/`, {method:"POST",
+    headers:{"Content-Type":"application/json"}, body:JSON.stringify(datos)});
+  return await r.json();
+}
+
+/* ================= MOTOS (concesionario) + CONFIG (WhatsApp asesor) =================
+   El número de WhatsApp NO se quema en el HTML: se trae de /api/config/
+   para que Ana lo pueda cambiar desde el admin sin tocar código. */
+let CONFIG_SITIO = {whatsapp_asesor:"573001234567", nombre_asesor:"Asesor comercial"};
+async function cargarConfig(){
+  if(USAR_DEMO) return;
+  try{
+    const r = await fetch(`${API_URL}/api/config/`);
+    CONFIG_SITIO = await r.json();
+  }catch(e){ console.error(e); }
+}
+const configListo = cargarConfig();
+
+function linkWhatsApp(numero, texto){
+  const limpio = String(numero || "").replace(/\D/g, "");
+  return `https://wa.me/${limpio}?text=${encodeURIComponent(texto)}`;
+}
+function mensajeCotizarMoto(m){
+  return `Hola, me interesa la ${m.nombre} (${fmt(m.precio)}). ¿Me pueden dar más información?`;
+}
+function mapMoto(m){
+  return {id:m.id, nombre:m.nombre, marca:m.marca || "Honda", precio:parseFloat(m.precio),
+          cilindraje:m.cilindraje || "", categoria:m.categoria || "",
+          descripcion:m.descripcion || "", foto:m.foto || null, destacada:m.destacada};
+}
+const MOTOS_DEMO = [
+  {id:1, nombre:"CB 160F DLX", marca:"Honda", precio:8990000, cilindraje:"162 cc", categoria:"naked",
+   descripcion:"Naked deportiva de uso diario, motor de 162cc y panel digital.", foto:null, destacada:false},
+  {id:2, nombre:"XR150L", marca:"Honda", precio:10990000, cilindraje:"150 cc", categoria:"enduro",
+   descripcion:"Doble propósito robusta para ciudad y trocha.", foto:null, destacada:true},
+  {id:3, nombre:"CB190R", marca:"Honda", precio:11990000, cilindraje:"184 cc", categoria:"naked",
+   descripcion:"La naked más potente de la línea, frenos de disco en ambas ruedas.", foto:null, destacada:true},
+];
+async function apiMotos(){
+  if(USAR_DEMO) return MOTOS_DEMO;
+  try{
+    const r = await fetch(`${API_URL}/api/motos/`);
+    return (await r.json()).map(mapMoto);
+  }catch(e){ console.error(e); return []; }
+}
+
+function proximaFecha(diaTexto){
+  // Convierte "mañana"/"el jueves"... en fecha AAAA-MM-DD real
+  const hoy = new Date();
+  const dias = {"domingo":0,"lunes":1,"martes":2,"miércoles":3,"jueves":4,"viernes":5,"sábado":6};
+  if(diaTexto.includes("mañana")){ hoy.setDate(hoy.getDate()+1); }
+  else{
+    const nombre = diaTexto.replace("el ","").trim();
+    const objetivo = dias[nombre] ?? hoy.getDay();
+    let delta = (objetivo - hoy.getDay() + 7) % 7; if(delta===0) delta=7;
+    hoy.setDate(hoy.getDate()+delta);
+  }
+  return hoy.toISOString().slice(0,10);
+}
+function hora24(h){
+  const [t, ampm] = h.split(" ");
+  let [hh, mm] = t.split(":").map(Number);
+  if(ampm==="PM" && hh<12) hh+=12;
+  return `${String(hh).padStart(2,"0")}:${mm===0?"00":mm}`;
+}
+
+/* ================= ÍCONOS =================
+   Dibuja los íconos Lucide presentes en el HTML estático (nav, hero, chips,
+   taller, diferenciales, footer, cascarón del chat). Las funciones que
+   agregan contenido dinámico (catálogo, motos, mensajes del bot) vuelven a
+   llamar lucide.createIcons() después de renderizar, para que los íconos
+   nuevos también se dibujen. */
+lucide.createIcons();
+
+/* ================= NAV MÓVIL ================= */
+const burger = document.getElementById("burger");
+const navLinks = document.getElementById("navLinks");
+burger.onclick = () => navLinks.classList.toggle("open");
+navLinks.querySelectorAll("a").forEach(a => a.addEventListener("click", () => navLinks.classList.remove("open")));
+
+/* ================= SCROLL REVEAL ================= */
+if("IntersectionObserver" in window){
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add("in-view"); io.unobserve(e.target); } });
+  }, {threshold:.12});
+  document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+}else{
+  document.querySelectorAll(".reveal").forEach(el => el.classList.add("in-view"));
+}
+
+/* ================= CATÁLOGO EN LA PÁGINA ================= */
+const grid = document.getElementById("gridCatalogo");
+let CATALOGO = [];
+function renderGrid(lista){
+  grid.innerHTML = "";
+  if(!lista.length){
+    grid.innerHTML = `<div class="grid-cat-empty"><i data-lucide="search" class="lucide"></i> No encontramos repuestos para este filtro. Prueba con otro o pregúntale al asistente virtual.</div>`;
+    lucide.createIcons();
+    return;
+  }
+  lista.forEach(p=>{
+    const c = document.createElement("div");
+    c.className = "card";
+    c.innerHTML = `
+      <div class="card-img">
+        ${p.foto ? `<span class="tag">${esc(p.modelo.split(",")[0])}</span>` : ""}
+        ${p.stock>0 && p.stock<=4 ? `<span class="tag-stock">Últimas ${p.stock}</span>` : ""}
+        ${p.stock<=0 ? `<span class="tag-stock" style="background:#6b7078"><i data-lucide="circle-x" class="lucide"></i> Agotado</span>` : ""}
+        ${p.foto
+          ? `<img src="${esc(p.foto)}" alt="${esc(p.nombre)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">`
+          : placaHtml(p)}
+      </div>
+      <div class="card-body">
+        <h3>${esc(p.nombre)}</h3>
+        <div class="ref">Ref: ${esc(p.ref)}</div>
+        <div class="precio">${fmt(p.precio)}</div>
+        <div class="stock">${p.stock>0 ? `<i data-lucide="check-circle" class="lucide"></i> ${p.stock} en stock` : `<span style="color:var(--rojo)"><i data-lucide="circle-x" class="lucide"></i> Agotado por ahora</span>`}</div>
+        <button onclick="cotizarDesdePagina(${p.id})"><i data-lucide="message-circle" class="lucide"></i> Cotizar</button>
+      </div>`;
+    grid.appendChild(c);
+  });
+  lucide.createIcons();
+}
+async function pintarCatalogo(){
+  CATALOGO = await apiCatalogo();
+  renderGrid(CATALOGO);
+}
+async function filtrar(cat, btn){
+  document.querySelectorAll("#chips .chip").forEach(c => c.classList.remove("active"));
+  btn.classList.add("active");
+  grid.innerHTML = `<div class="card-img" style="grid-column:1/-1;height:6px;border-radius:6px"></div>`;
+  const lista = cat === "" ? await apiCatalogo() : await apiPorCategoria(cat);
+  CATALOGO = lista.length || cat === "" ? lista : CATALOGO;
+  renderGrid(lista);
+}
+pintarCatalogo();
+
+/* ================= MOTOS EN LA PÁGINA ================= */
+const gridMotos = document.getElementById("gridMotos");
+function renderMotos(lista){
+  gridMotos.innerHTML = "";
+  if(!lista.length){
+    gridMotos.innerHTML = `<div class="grid-cat-empty"><i data-lucide="bike" class="lucide"></i> Muy pronto vas a poder ver aquí el catálogo de motos nuevas. Mientras tanto, escríbenos por el chat.</div>`;
+    lucide.createIcons();
+    return;
+  }
+  lista.forEach(m=>{
+    const c = document.createElement("div");
+    c.className = "moto-card";
+    const wa = linkWhatsApp(CONFIG_SITIO.whatsapp_asesor, mensajeCotizarMoto(m));
+    c.innerHTML = `
+      <div class="moto-img">
+        ${m.destacada ? `<span class="moto-destacada"><i data-lucide="star" class="lucide"></i> Destacada</span>` : ""}
+        ${m.foto
+          ? `<img src="${esc(m.foto)}" alt="${esc(m.nombre)}" loading="lazy">`
+          : placaHtml(m)}
+      </div>
+      <div class="moto-body">
+        <div class="moto-meta">
+          ${m.cilindraje ? `<span class="moto-chip">${esc(m.cilindraje)}</span>` : ""}
+          ${m.categoria ? `<span class="moto-chip">${esc(m.categoria)}</span>` : ""}
+        </div>
+        <h3>${esc(m.nombre)}</h3>
+        <div class="moto-precio">${fmt(m.precio)}</div>
+        ${m.descripcion ? `<p class="moto-desc" id="desc-${m.id}">${esc(m.descripcion)}</p>` : ""}
+        <div class="moto-ctas">
+          <a class="btn-wa" href="${wa}" target="_blank" rel="noopener"><i data-lucide="message-circle" class="lucide"></i> Cotizar por WhatsApp</a>
+          ${m.descripcion ? `<button class="btn-detalle" onclick="toggleDetalleMoto(${m.id})">Ver detalle</button>` : ""}
+        </div>
+      </div>`;
+    gridMotos.appendChild(c);
+  });
+  lucide.createIcons();
+}
+function toggleDetalleMoto(id){
+  const el = document.getElementById(`desc-${id}`);
+  if(el) el.classList.toggle("open");
+}
+async function pintarMotos(){
+  await configListo;
+  renderMotos(await apiMotos());
+}
+pintarMotos();
+
+/* ================= WIDGET ================= */
+const panel = document.getElementById("panel");
+const fabDot = document.getElementById("fabDot");
+const chat = document.getElementById("chat");
+const inp = document.getElementById("inp");
+const statusEl = document.getElementById("status");
+let cotizacion = [];      // items {producto, cantidad:1}
+let citaTmp = {};
+let saludado = false;
+let captura = null;       // cuando el bot espera un dato escrito (nombre/teléfono)
+
+function toggleChat(){
+  panel.classList.toggle("open");
+  fabDot.style.display = "none";
+  if(panel.classList.contains("open") && !saludado){
+    saludado = true;
+    setTimeout(saludo, 400);
+  }
+}
+function abrirChat(){ if(!panel.classList.contains("open")) toggleChat(); }
+function abrirCita(servicioNombre){
+  abrirChat();
+  const s = SERVICIOS.find(x=>x.nombre===servicioNombre) || SERVICIOS[0];
+  const arranca = ()=>{ clearButtons(); userMsg("Quiero agendar: "+s.nombre); setTimeout(()=>citaDia(s), 400); };
+  if(!saludado){ setTimeout(arranca, 1600); } else { arranca(); }
+}
+function cotizarDesdePagina(id){
+  const p = CATALOGO.find(x=>x.id===id);
+  if(!p) return;
+  abrirChat();
+  const arranca = ()=>{ clearButtons(); userMsg("Quiero cotizar: "+p.nombre); setTimeout(()=>agregar(p), 400); };
+  if(!saludado){ setTimeout(arranca, 1600); } else { arranca(); }
+}
+
+function horaTxt(){
+  return new Date().toLocaleTimeString("es-CO",{hour:"numeric",minute:"2-digit",hour12:true}).toLowerCase();
+}
+function scrollChat(){ chat.scrollTop = chat.scrollHeight; }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+function userMsg(txt){
+  const d = document.createElement("div");
+  d.className = "msg out";
+  d.innerHTML = esc(txt) + `<span class="meta">${horaTxt()} <span class="check"><i data-lucide="check-check" class="lucide"></i></span></span>`;
+  chat.appendChild(d); scrollChat();
+  lucide.createIcons();
+}
+function botMsg(html, delay=850){
+  return new Promise(res=>{
+    statusEl.textContent = "escribiendo…";
+    const t = document.createElement("div");
+    t.className = "typing";
+    t.innerHTML = "<span></span><span></span><span></span>";
+    chat.appendChild(t); scrollChat();
+    setTimeout(()=>{
+      t.remove();
+      statusEl.textContent = "en línea";
+      const d = document.createElement("div");
+      d.className = "msg in";
+      d.innerHTML = html + `<span class="meta">${horaTxt()}</span>`;
+      chat.appendChild(d); scrollChat();
+      lucide.createIcons();
+      res();
+    }, delay);
+  });
+}
+function botButtons(opts){
+  clearButtons();
+  const g = document.createElement("div");
+  g.className = "btn-group"; g.id = "activeBtns";
+  const contenido = o => (o.icon ? `<i data-lucide="${o.icon}" class="lucide"${o.iconColor ? ` style="color:${o.iconColor}"` : ""}></i> ` : "") + esc(o.label);
+  opts.forEach(o=>{
+    if(o.href){
+      // enlace real (ej. WhatsApp): la navegación debe ser directa desde el
+      // click, no via setTimeout, o el navegador puede bloquearla como popup.
+      const a = document.createElement("a");
+      a.className = "qbtn"; a.innerHTML = contenido(o);
+      a.href = o.href; a.target = "_blank"; a.rel = "noopener";
+      a.onclick = ()=>{ userMsg(o.label); clearButtons(); };
+      g.appendChild(a);
+    }else{
+      const b = document.createElement("button");
+      b.className = "qbtn"; b.innerHTML = contenido(o);
+      b.onclick = ()=>{ clearButtons(); userMsg(o.label); setTimeout(o.action, 350); };
+      g.appendChild(b);
+    }
+  });
+  chat.appendChild(g); scrollChat();
+  lucide.createIcons();
+}
+function clearButtons(){
+  const g = document.getElementById("activeBtns");
+  if(g) g.remove();
+}
+function chatProdHtml(p, extra){
+  const miniatura = p.foto
+    ? `<img src="${esc(p.foto)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:9px">`
+    : placaHtml(p);
+  return `<div class="chat-prod">
+    <div class="foto-tile">${miniatura}</div>
+    <div class="info">${extra}</div>
+  </div>`;
+}
+
+/* ================= FLUJOS DEL BOT ================= */
+async function saludo(){
+  await botMsg("¡Hola! 👋 Soy el asistente virtual de <b>SuperMotos La 4ta</b>.\nEscríbeme qué repuesto buscas y para qué moto, como si le hablaras a un vendedor. Por ejemplo:\n<i>«frenos para mi cb110»</i>\n<i>«necesito una bujía para wave»</i>\n<i>«cuánto vale el kit de arrastre cb190»</i>");
+  await menu();
+}
+async function menu(){
+  botButtons([
+    {icon:"search", label:"Buscar un repuesto", action: iniciarBusquedaRepuesto},
+    {icon:"wrench", label:"Agendar cita de taller", action: flujoCita},
+    {icon:"receipt", label:"Ver mi cotización" + (cotizacion.length ? ` (${cotizacion.length})` : ""), action: verCotizacion},
+    {icon:"user-round", label:"Hablar con un asesor", action: asesor},
+  ]);
+}
+async function iniciarBusquedaRepuesto(){
+  // Activa el flujo de búsqueda: el bot invita a escribir y deja el input
+  // listo. La búsqueda misma la resuelve buscar(), disparada por procesar()
+  // apenas el cliente escriba (ver ENTRADA LIBRE más abajo).
+  await botMsg("<i data-lucide=\"search\" class=\"lucide\"></i> ¡Claro! Escríbeme el <b>repuesto y el modelo de tu moto</b>, por ejemplo:\n<i>«pastillas de freno cb160»</i>\n<i>«filtro de aire xr150»</i>\n<i>«bujía para wave»</i>");
+  inp.focus();
+}
+async function buscar(q){
+  const res = await apiBuscar(q);
+  if(!res.length){
+    await botMsg(`No encontré "<b>${esc(q)}</b>" en el inventario 😅.\nProbá con otras palabras (ej: <i>pastillas, filtro de aire, bujía, kit de arrastre</i>) o decime el modelo de tu moto.`);
+    return menu();
+  }
+  const hayStock = res.some(p => p.stock > 0);
+  let html = hayStock
+    ? `<i data-lucide="check-circle" class="lucide" style="color:var(--verde)"></i> Encontré <b>${res.length}</b> resultado(s):`
+    : `<i data-lucide="triangle-alert" class="lucide" style="color:var(--rojo)"></i> Encontré <b>${res.length}</b> resultado(s), pero por ahora están agotados:`;
+  res.slice(0,4).forEach(p=>{
+    html += `<span class="divider"></span>` + chatProdHtml(p,
+      `<b>${esc(p.nombre)}</b><br>Ref: ${esc(p.ref)}<br>Compatible: ${esc(p.modelo)}<br>Precio: <span class="price">${fmt(p.precio)}</span><br>` +
+      (p.stock > 0 ? `Stock: ${p.stock} unidades <i data-lucide="check-circle" class="lucide" style="color:var(--verde)"></i>` : `<span style="color:var(--rojo);font-weight:600">Agotado por ahora <i data-lucide="circle-x" class="lucide"></i></span>`));
+  });
+  await botMsg(html, 1100);
+  const btns = res.slice(0,3).map(p => ({
+    icon: p.stock > 0 ? "plus" : "bell",
+    label: (p.stock > 0 ? "Agregar " : "Avísenme ") + p.nombre.split(" ").slice(0,3).join(" "),
+    action: ()=>agregar(p)
+  }));
+  btns.push({icon:"arrow-left", label:"Accesos rápidos", action: menu});
+  botButtons(btns);
+}
+async function agregar(p){
+  cotizacion.push(p);
+  await botMsg(chatProdHtml(p,
+    `<i data-lucide="shopping-cart" class="lucide"></i> <b>${esc(p.nombre)}</b> agregado a tu cotización.<br>Llevas <b>${cotizacion.length}</b> producto(s) — Subtotal: <span class="price">${fmt(cotizacion.reduce((s,x)=>s+x.precio,0))}</span>`));
+  botButtons([
+    {icon:"receipt", label:"Ver cotización completa", action: verCotizacion},
+    {icon:"arrow-left", label:"Accesos rápidos", action: menu},
+  ]);
+}
+async function verCotizacion(){
+  if(!cotizacion.length){
+    await botMsg("<i data-lucide=\"receipt\" class=\"lucide\"></i> Tu cotización está vacía por ahora.\nEscríbeme qué repuesto buscas y te ayudo enseguida.");
+    return menu();
+  }
+  let total = 0;
+  let html = "<i data-lucide=\"receipt\" class=\"lucide\"></i> <b>TU COTIZACIÓN</b>\nSuperMotos La 4ta — Popayán<span class=\"divider\"></span>";
+  cotizacion.forEach((p)=>{
+    total += p.precio;
+    html += chatProdHtml(p, `${esc(p.nombre)}<br><span class="price">${fmt(p.precio)}</span>`);
+  });
+  html += `<span class="divider"></span><i data-lucide="wallet" class="lucide"></i> <b>TOTAL: <span class="price">${fmt(total)}</span></b>\n<i>Precios válidos por 3 días. No incluye envío.</i>`;
+  await botMsg(html, 1200);
+  botButtons([
+    {icon:"check-circle", label:"Confirmar pedido", action: pedirDatosPedido},
+    {icon:"trash-2", label:"Vaciar cotización", action: vaciar},
+    {icon:"arrow-left", label:"Menú principal", action: menu},
+  ]);
+}
+async function pedirDatosPedido(){
+  await botMsg("¡Perfecto! Para confirmar tu pedido, escríbeme tu <b>nombre y número de WhatsApp</b> (ej: <i>Carlos Gómez 3001234567</i>) <i data-lucide=\"message-circle\" class=\"lucide\"></i>");
+  captura = confirmarPedidoConDatos;
+}
+function extraerDatos(txt){
+  const tel = (txt.match(/\d[\d\s\-]{6,}/) || [""])[0].replace(/\D/g,"");
+  const nombre = txt.replace(/\d[\d\s\-]{6,}/,"").replace(/[,;]/g," ").trim();
+  return {nombre: nombre || "Cliente web", telefono: tel};
+}
+async function confirmarPedidoConDatos(txt){
+  const d = extraerDatos(txt);
+  if(!d.telefono){
+    await botMsg("No logré identificar el número 😅. Escríbeme tu nombre y un número de contacto, por favor.");
+    captura = confirmarPedidoConDatos;
+    return;
+  }
+  try{
+    const r = await apiCrearCotizacion({
+      nombre_cliente: d.nombre, telefono: d.telefono, origen: "web",
+      items: cotizacion.map(p=>({producto_id:p.id, cantidad:1})),
+    });
+    await botMsg(`🎉 ¡Pedido registrado, ${esc(d.nombre.split(" ")[0])}!\nCotización <b>#${String(r.id||42).padStart(4,"0")}</b> guardada.\nUn asesor te contactará al <b>${esc(d.telefono)}</b> para coordinar pago y entrega. 🛵💨`);
+  }catch(e){
+    await botMsg("Tuvimos un problema guardando el pedido 😔. Intenta de nuevo en un momento o escríbenos al WhatsApp del almacén.");
+  }
+  cotizacion = [];
+  await menu();
+}
+async function vaciar(){
+  cotizacion = [];
+  await botMsg("<i data-lucide=\"trash-2\" class=\"lucide\"></i> Listo, tu cotización quedó vacía.");
+  await menu();
+}
+const ICONO_SERVICIO = {mantenimiento:"wrench", aceite:"droplet", frenos:"disc", inyeccion:"activity"};
+async function flujoCita(){
+  await botMsg("<i data-lucide=\"wrench\" class=\"lucide\"></i> ¡Con gusto! ¿Qué servicio necesita tu moto?");
+  botButtons(SERVICIOS.map(s=>({icon:ICONO_SERVICIO[s.clave], label:s.nombre, action:()=>citaDia(s)}))
+    .concat([{icon:"arrow-left", label:"Volver al menú", action: menu}]));
+}
+async function citaDia(servicio){
+  citaTmp = {servicio};
+  await botMsg(`Perfecto: <b>${servicio.nombre}</b>.\n¿Qué día te queda bien? <i data-lucide="calendar" class="lucide"></i>`);
+  botButtons([
+    {label:"Mañana", action:()=>citaHora("mañana")},
+    {label:"Jueves", action:()=>citaHora("el jueves")},
+    {label:"Viernes", action:()=>citaHora("el viernes")},
+    {label:"Sábado", action:()=>citaHora("el sábado")},
+  ]);
+}
+async function citaHora(dia){
+  citaTmp.dia = dia;
+  await botMsg(`Estos son los horarios disponibles ${dia}: <i data-lucide="clock" class="lucide"></i>`);
+  botButtons(HORAS.map(h=>({label:h, action:()=>citaDatos(h)})));
+}
+async function citaDatos(h){
+  citaTmp.hora = h;
+  await botMsg("¡Casi listo! Escríbeme tu <b>nombre, número de WhatsApp y el modelo de tu moto</b>\n(ej: <i>Ana Ruiz 3017654321 CB160F</i>) <i data-lucide=\"message-circle\" class=\"lucide\"></i> <i data-lucide=\"bike\" class=\"lucide\"></i>");
+  captura = citaConfirmarConDatos;
+}
+async function citaConfirmarConDatos(txt){
+  const d = extraerDatos(txt);
+  if(!d.telefono){
+    await botMsg("No logré identificar el número 😅. Escríbeme tu nombre y un número de contacto, por favor.");
+    captura = citaConfirmarConDatos;
+    return;
+  }
+  // detectar modelo de moto en el texto
+  const moto = (txt.toUpperCase().match(/(CB\s?\d+\w*|XR\s?\d+\w*|XRE\s?\d+|CBF\s?\d+|NAVI|DIO|XBLADE|INVICTA|DREAM\w*)/) || [""])[0];
+  const nombre = d.nombre.replace(new RegExp(moto,"i"),"").trim() || "Cliente web";
+  try{
+    await apiCrearCita({
+      nombre_cliente: nombre, telefono: d.telefono,
+      servicio: citaTmp.servicio.clave, moto: moto,
+      fecha: proximaFecha(citaTmp.dia), hora: hora24(citaTmp.hora),
+    });
+    await botMsg(`<i data-lucide="check-circle" class="lucide" style="color:var(--verde)"></i> <b>¡Cita agendada!</b><span class="divider"></span><i data-lucide="user-round" class="lucide"></i> ${esc(nombre)}\n<i data-lucide="wrench" class="lucide"></i> ${citaTmp.servicio.nombre}\n<i data-lucide="calendar" class="lucide"></i> ${citaTmp.dia} — <i data-lucide="clock" class="lucide"></i> ${citaTmp.hora}\n${moto ? `<i data-lucide="bike" class="lucide"></i> Moto: `+esc(moto)+"\n" : ""}<i data-lucide="map-pin" class="lucide"></i> SuperMotos La 4ta — Popayán<span class="divider"></span>Te contactaremos al <b>${esc(d.telefono)}</b> para confirmar. <i data-lucide="bell" class="lucide"></i>`, 1100);
+  }catch(e){
+    await botMsg("Tuvimos un problema agendando 😔. Intenta de nuevo o llámanos directamente.");
+  }
+  await menu();
+}
+async function asesor(){
+  await configListo;
+  await botMsg("<i data-lucide=\"user-round\" class=\"lucide\"></i> Te conecto con uno de nuestros asesores.\n<i data-lucide=\"clock\" class=\"lucide\"></i> Tiempo estimado de respuesta: <b>5 minutos</b> (L-S, 8am a 6pm).\n\nTambién puedes escribirle directo por WhatsApp. 😉");
+  botButtons([
+    {icon:"message-circle", iconColor:"var(--verde-wa)", label:"Abrir WhatsApp", href: linkWhatsApp(CONFIG_SITIO.whatsapp_asesor, "Hola, vengo de la página web y necesito ayuda")},
+    {icon:"wrench", label:"Agendar cita de taller", action: flujoCita},
+    {icon:"receipt", label:"Ver mi cotización" + (cotizacion.length ? ` (${cotizacion.length})` : ""), action: verCotizacion},
+  ]);
+}
+
+/* ================= ENTRADA LIBRE (bot conversacional) =================
+   El cliente escribe libre ("frenos para mi cb110", "cuanto vale el kit
+   de arrastre cb190") y por defecto se busca en el backend, que ya
+   interpreta pieza + modelo (tienda/busqueda.py). Antes de buscar se
+   detectan unas pocas intenciones explícitas (saludo, cita, cotización,
+   asesor) para no mandar esas frases como si fueran nombre de repuesto. */
+async function procesar(txt){
+  if(captura){ const fn = captura; captura = null; return fn(txt); }
+  const t = txt.toLowerCase().trim();
+  if(/^(hola|buenas|buenos dias|buenas tardes|buenas noches|menu|menú|inicio)\b/.test(t)) return saludo();
+  if(/\b(cotizaci[oó]n|cotizar|carrito|mi pedido)\b/.test(t)) return verCotizacion();
+  if(/\b(cita|agendar|agenda)\b/.test(t)) return flujoCita();
+  if(/\b(asesor|humano|persona real|hablar con alguien)\b/.test(t)) return asesor();
+  if(/^gracias/.test(t)){
+    await botMsg("¡Con mucho gusto! 🙌 Sigo aquí si necesitas algo más.");
+    return menu();
+  }
+  return buscar(txt);
+}
+function enviar(){
+  const v = inp.value.trim();
+  if(!v) return;
+  inp.value = "";
+  clearButtons();
+  userMsg(v);
+  setTimeout(()=>procesar(v), 400);
+}
+document.getElementById("sendBtn").onclick = enviar;
+inp.addEventListener("keydown", e=>{ if(e.key==="Enter") enviar(); });
+</script>
+</body>
+</html>

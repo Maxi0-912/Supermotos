@@ -1,0 +1,9 @@
+Django>=5.0
+djangorestframework
+django-cors-headers
+openpyxl
+gunicorn
+whitenoise
+psycopg2-binary
+dj-database-url
+Pillow
