@@ -743,6 +743,20 @@ function linkWhatsApp(numero, texto){
 function mensajeCotizarMoto(m){
   return `Hola, me interesa la ${m.nombre} (${fmt(m.precio)}). ¿Me pueden dar más información?`;
 }
+/* Resumen detallado de una cotización de repuestos, dirigido al WhatsApp
+   del almacén (no al del cliente). Se arma con los mismos items que ya
+   quedaron guardados vía apiCrearCotizacion(), para que el asesor reciba
+   exactamente lo mismo que quedó registrado en el sistema. */
+function mensajeResumenCotizacion(numero, datosCliente, items){
+  const lista = items.map((p, i) => `${i + 1}. ${p.nombre} - ${fmt(p.precio)}`).join("\n");
+  const total = items.reduce((s, p) => s + p.precio, 0);
+  return `Hola, les escribo por la cotización #${numero} que acabo de generar en la página:\n\n` +
+    `*Cliente:* ${datosCliente.nombre}\n` +
+    `*WhatsApp:* ${datosCliente.telefono}\n\n` +
+    `*Productos:*\n${lista}\n\n` +
+    `*Total:* ${fmt(total)}\n\n` +
+    `¿Me confirman disponibilidad y cómo coordinamos el pago?`;
+}
 function mapMoto(m){
   return {id:m.id, nombre:m.nombre, marca:m.marca || "Honda", precio:parseFloat(m.precio),
           cilindraje:m.cilindraje || "", categoria:m.categoria || "",
@@ -1082,29 +1096,48 @@ async function pedirDatosPedido(){
   await botMsg("¡Perfecto! Para confirmar tu pedido, escríbeme tu <b>nombre y número de WhatsApp</b> (ej: <i>Carlos Gómez 3001234567</i>) <i data-lucide=\"message-circle\" class=\"lucide\"></i>");
   captura = confirmarPedidoConDatos;
 }
+/* Validación estricta del número de WhatsApp: solo dígitos, sin espacios
+   vacíos ni caracteres inválidos, y con una longitud plausible para un
+   número real (7 a 15 dígitos, rango general de la norma E.164). Si no
+   cumple, se descarta (string vacío) y el flujo vuelve a pedirlo. */
+function validarWhatsApp(numero){
+  const limpio = String(numero || "").replace(/\D/g, "");
+  return (limpio.length >= 7 && limpio.length <= 15) ? limpio : "";
+}
 function extraerDatos(txt){
-  const tel = (txt.match(/\d[\d\s\-]{6,}/) || [""])[0].replace(/\D/g,"");
-  const nombre = txt.replace(/\d[\d\s\-]{6,}/,"").replace(/[,;]/g," ").trim();
-  return {nombre: nombre || "Cliente web", telefono: tel};
+  const coincidencia = (txt.match(/\d[\d\s\-]{6,}/) || [""])[0];
+  const telefono = validarWhatsApp(coincidencia);
+  const nombre = txt.replace(/\d[\d\s\-]{6,}/, "").replace(/[,;]/g, " ").replace(/\s+/g, " ").trim();
+  return {nombre: nombre || "Cliente web", telefono};
 }
 async function confirmarPedidoConDatos(txt){
   const d = extraerDatos(txt);
   if(!d.telefono){
-    await botMsg("No logré identificar el número 😅. Escríbeme tu nombre y un número de contacto, por favor.");
+    await botMsg("No logré identificar un número de WhatsApp válido 😅. Escríbeme tu nombre y un número de contacto (solo números, sin espacios raros), por favor.");
     captura = confirmarPedidoConDatos;
     return;
   }
+  const itemsCotizados = [...cotizacion];
   try{
     const r = await apiCrearCotizacion({
       nombre_cliente: d.nombre, telefono: d.telefono, origen: "web",
-      items: cotizacion.map(p=>({producto_id:p.id, cantidad:1})),
+      items: itemsCotizados.map(p=>({producto_id:p.id, cantidad:1})),
     });
-    await botMsg(`🎉 ¡Pedido registrado, ${esc(d.nombre.split(" ")[0])}!\nCotización <b>#${String(r.id||42).padStart(4,"0")}</b> guardada.\nUn asesor te contactará al <b>${esc(d.telefono)}</b> para coordinar pago y entrega. 🛵💨`);
+    const numero = String(r.id || 42).padStart(4, "0");
+    await botMsg(`🎉 ¡Pedido registrado, ${esc(d.nombre.split(" ")[0])}!\nCotización <b>#${numero}</b> guardada.\nUn asesor te contactará al <b>${esc(d.telefono)}</b> para coordinar pago y entrega. 🛵💨`);
+    cotizacion = [];
+    await configListo;
+    botButtons([
+      {icon:"message-circle", iconColor:"var(--verde-wa)", label:"Enviar resumen por WhatsApp",
+       href: linkWhatsApp(CONFIG_SITIO.whatsapp_asesor, mensajeResumenCotizacion(numero, d, itemsCotizados))},
+      {icon:"wrench", label:"Agendar cita de taller", action: flujoCita},
+      {icon:"user-round", label:"Hablar con un asesor", action: asesor},
+    ]);
   }catch(e){
     await botMsg("Tuvimos un problema guardando el pedido 😔. Intenta de nuevo en un momento o escríbenos al WhatsApp del almacén.");
+    cotizacion = [];
+    await menu();
   }
-  cotizacion = [];
-  await menu();
 }
 async function vaciar(){
   cotizacion = [];
