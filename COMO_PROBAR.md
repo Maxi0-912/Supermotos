@@ -17,18 +17,15 @@ Abre http://127.0.0.1:8000/admin/
   (la contraseña de demo anterior quedó expuesta públicamente y ya no es
   válida — ver aviso de seguridad en el README).
 
-Ahí ves los 3.088 productos, las cotizaciones y citas que entran por el bot,
-y la pantalla "Actualizar inventario desde Celeste" para subir el Excel.
+Ahí ves los 3.088 productos, las cotizaciones que entran por el bot, y la
+pantalla "Actualizar inventario desde Celeste" para subir el Excel.
 
 ## 3. Ver la página web + bot
-Abre `web_frontend.html` con Live Server (o doble clic).
+Con el backend corriendo (paso 1), abre directamente http://127.0.0.1:8000/ —
+Django sirve ahí mismo la página y el bot (`web_frontend.html` +
+`static/js/bot.js`), en el mismo puerto que la API, sin CORS ni Live Server.
 El bot ya consulta el inventario REAL: prueba escribirle
 "pastillas cb160", "filtro aire xr150", "bateria", "kit arrastre".
-
-> Nota: como el backend corre en http://127.0.0.1:8000, si abres el HTML
-> directamente (file://) el navegador puede bloquear las peticiones por CORS.
-> Con Live Server (http://127.0.0.1:5500) funciona sin problema porque
-> CORS_ALLOW_ALL_ORIGINS está activo en desarrollo.
 
 ## 4. Actualizar el inventario cuando Ana exporte de Celeste
 En Celeste: Productos -> botón Excel. Luego:
