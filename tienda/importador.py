@@ -80,9 +80,17 @@ def importar_excel(ruta_o_archivo, desactivar_faltantes=False):
     # por defecto y en ese modo openpyxl reporta mal las dimensiones (1x1),
     # perdiendo todas las filas. En modo normal se leen correctas.
     import warnings
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        wb = load_workbook(ruta_o_archivo, data_only=True)
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            wb = load_workbook(ruta_o_archivo, data_only=True)
+    except Exception:
+        # Archivo que no es un .xlsx válido (subieron un PDF, un .xls viejo,
+        # un archivo corrupto). Se devuelve como error normal en vez de
+        # reventar con un 500 en el panel.
+        return {"ok": False, "error": "No se pudo abrir el archivo. Debe ser el "
+                "Excel (.xlsx) exportado desde Productos en Celeste.",
+                "creados": 0, "actualizados": 0, "omitidos": 0, "detalles": []}
     hoja = wb.active
 
     # Cargar todas las filas a memoria (3 mil filas es trivial)
