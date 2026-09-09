@@ -170,6 +170,17 @@ if os.environ.get('RAILWAY_ENVIRONMENT'):
 # desarrollo: con DEBUG=True, Django igual permite localhost/127.0.0.1.
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
 
+# Railway publica el dominio del servicio en RAILWAY_PUBLIC_DOMAIN (p.ej.
+# "supermotos-production.up.railway.app"). Se agrega solo, para que el sitio y
+# el healthcheck respondan sin tener que copiar el dominio a mano en las
+# variables. Un dominio propio sí hay que ponerlo en ALLOWED_HOSTS.
+_railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '').strip()
+if _railway_domain and _railway_domain not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_railway_domain)
+    _csrf = globals().get('CSRF_TRUSTED_ORIGINS', [])
+    if 'https://' + _railway_domain not in _csrf:
+        CSRF_TRUSTED_ORIGINS = _csrf + ['https://' + _railway_domain]
+
 # En desarrollo se permite cualquier origen; en producción, solo los dominios
 # reales en CORS_ALLOWED_ORIGINS (misma lista separada por comas).
 CORS_ALLOW_ALL_ORIGINS = DEBUG
