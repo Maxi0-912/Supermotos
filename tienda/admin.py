@@ -249,7 +249,7 @@ class SubidaForm(forms.Form):
 @admin.register(ImportacionInventario)
 class ImportacionAdmin(admin.ModelAdmin):
     list_display = ["fecha", "creados", "actualizados"]
-    readonly_fields = ["fecha", "creados", "actualizados", "errores", "archivo"]
+    readonly_fields = ["fecha", "creados", "actualizados", "errores"]
 
     def get_urls(self):
         return [path("subir/", self.admin_site.admin_view(self.subir),
@@ -261,7 +261,13 @@ class ImportacionAdmin(admin.ModelAdmin):
             form = SubidaForm(request.POST, request.FILES)
             if form.is_valid():
                 reg = ImportacionInventario.objects.create(archivo=form.cleaned_data["archivo"])
-                r = importar_excel(reg.archivo.path)
+                try:
+                    r = importar_excel(reg.archivo.path)
+                finally:
+                    # No se conserva el Excel: lleva costos y márgenes del
+                    # negocio y ya cumplió su función al importarse.
+                    reg.archivo.delete(save=False)
+                    reg.archivo = ""
                 reg.creados, reg.actualizados = r.get("creados", 0), r.get("actualizados", 0)
                 reg.errores = "\n".join(r.get("detalles", [])) or r.get("error", "")
                 reg.save()

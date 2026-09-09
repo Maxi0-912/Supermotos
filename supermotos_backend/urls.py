@@ -15,4 +15,12 @@ urlpatterns = [
     path('', frontend),
     path('admin/', admin.site.urls),
     path('api/', include('tienda.urls')),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
+
+# static() SOLO devuelve rutas con DEBUG=True: en producción MEDIA_URL no se
+# sirve por Django y whitenoise sirve únicamente STATIC_ROOT, no MEDIA_ROOT.
+# Es a propósito -- lo subido a media/ (el Excel de Celeste ya se borra tras
+# importarse; ver tienda/views.py) no debe quedar accesible por URL. Si algún
+# día hacen falta imágenes subidas en producción, se resuelve con
+# almacenamiento externo (S3 / volumen), no abriendo esta ruta.
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

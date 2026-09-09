@@ -139,7 +139,15 @@ def importar_inventario(request):
         return Response({"error": "Adjunta el archivo Excel exportado de Celeste en el campo 'archivo'."},
                         status=status.HTTP_400_BAD_REQUEST)
     registro = ImportacionInventario.objects.create(archivo=archivo)
-    resultado = importar_excel(registro.archivo.path)
+    try:
+        resultado = importar_excel(registro.archivo.path)
+    finally:
+        # El Excel de Celeste lleva costos y márgenes del negocio. Una vez
+        # procesado no aporta nada guardarlo, y dejarlo en MEDIA_ROOT es un
+        # riesgo (basta un cambio de DEBUG o de urls.py para exponerlo). Se
+        # borra siempre, incluso si la importación falló.
+        registro.archivo.delete(save=False)
+        registro.archivo = ""
     registro.creados = resultado.get("creados", 0)
     registro.actualizados = resultado.get("actualizados", 0)
     registro.errores = "\n".join(resultado.get("detalles", [])) or resultado.get("error", "")

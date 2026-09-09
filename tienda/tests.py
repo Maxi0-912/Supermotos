@@ -1,9 +1,14 @@
 import importlib
+import io
+import tempfile
 from datetime import timedelta
+from pathlib import Path
 
 from django.apps import apps as global_apps
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test import TestCase, override_settings
 from django.test.client import RequestFactory
@@ -303,3 +308,56 @@ class AvisosAdminTests(TestCase):
         resp = self.client.get("/admin/")
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "No hay datos de contacto configurados")
+
+
+@override_settings(
+    MEDIA_ROOT=tempfile.mkdtemp(),
+    # el redirect del admin renderiza {% static %}; en prod usa el manifest de
+    # whitenoise (necesita collectstatic), en tests basta el simple.
+    STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    },
+)
+class ExcelNoSePersisteTests(TestCase):
+    """Seguridad: el Excel de Celeste (costos y márgenes del negocio) no debe
+    quedar en disco ni accesible una vez procesado."""
+
+    def _xlsx(self):
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.append(["Código", "Descripcion", "Público", "Dispo"])
+        ws.append(["C-001", "17211-KRH-780 FILTRO DE AIRE (CB110)", 35000, 8])
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    def _ana(self):
+        User = get_user_model()
+        User.objects.create_superuser("ana", "ana@almacen.co", "x")
+        self.client.force_login(User.objects.get(username="ana"))
+
+    def test_admin_subir_importa_pero_borra_el_archivo(self):
+        self._ana()
+        resp = self.client.post(
+            reverse("admin:tienda_importacioninventario_subir"),
+            {"archivo": SimpleUploadedFile("celeste.xlsx", self._xlsx())},
+            follow=True)
+        self.assertEqual(resp.status_code, 200)
+        reg = ImportacionInventario.objects.get()
+        self.assertEqual(reg.creados, 1)                    # sí se importó
+        self.assertFalse(reg.archivo)                       # pero no quedó guardado
+        self.assertEqual(
+            list(Path(settings.MEDIA_ROOT).glob("importaciones/*")), [])
+
+    def test_archivo_invalido_no_revienta_y_no_queda_en_disco(self):
+        self._ana()
+        resp = self.client.post(
+            reverse("admin:tienda_importacioninventario_subir"),
+            {"archivo": SimpleUploadedFile("no-es-excel.xlsx", b"esto no es un xlsx")},
+            follow=True)
+        self.assertEqual(resp.status_code, 200)                    # sin 500
+        self.assertContains(resp, "No se pudo abrir el archivo")   # error claro para Ana
+        self.assertEqual(
+            list(Path(settings.MEDIA_ROOT).glob("importaciones/*")), [])
