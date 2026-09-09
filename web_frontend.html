@@ -318,10 +318,15 @@
   .taller-info-item .lucide{color:var(--rojo);width:1.4em;height:1.4em;flex-shrink:0}
   .taller-info-item h4{font-size:14.5px;color:#fff;margin-bottom:2px}
   .taller-info-item p{font-size:13.5px;color:#b9bdc5;margin:0}
-  a.taller-info-item{text-decoration:none;background:var(--verde-wa);transition:background .15s}
-  a.taller-info-item:hover{background:#1fb355}
-  a.taller-info-item .lucide{color:#fff}
-  a.taller-info-item h4{color:#fff}
+  /* verde SOLO cuando el destino es WhatsApp. pintarTallerWa() le quita el
+     href si el número no es válido; sin href vuelve a ser una tarjeta gris
+     normal, para no entrenar al usuario a desconfiar del verde. */
+  a.taller-info-item[href]{text-decoration:none;background:var(--verde-wa);transition:background .15s}
+  a.taller-info-item[href]:hover{background:#1fb355}
+  a.taller-info-item[href] .lucide{color:#fff}
+  a.taller-info-item[href] h4{color:#fff}
+  a.taller-info-item:not([href]){text-decoration:none;cursor:default}
+  a.taller-info-item:not([href]) .canal-alterno{color:#b9bdc5}
 
   /* diferenciales */
   .grid-dif{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px}

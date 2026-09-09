@@ -240,7 +240,8 @@ class AvisosAdminTests(TestCase):
 
     def _con_whatsapp_ok(self):
         ConfiguracionSitio.objects.update_or_create(
-            pk=1, defaults={"whatsapp_asesor": "573001234567"})
+            pk=1, defaults={"whatsapp_asesor": "573001234567",
+                            "telefono_fijo": "(602) 838 12 34"})
 
     def test_avisa_whatsapp_mal_configurado(self):
         self._con_whatsapp_ok()
@@ -249,6 +250,22 @@ class AvisosAdminTests(TestCase):
 
         ConfiguracionSitio.objects.filter(pk=1).update(whatsapp_asesor="57")
         self.assertIn("WhatsApp del asesor", avisos_almacen())
+
+    def test_combo_b_avisa_whatsapp_y_alterno_juntos(self):
+        # Instalación nueva: sin WhatsApp y sin contacto alterno -> un solo
+        # aviso que nombra las dos faltas.
+        ConfiguracionSitio.objects.update_or_create(pk=1, defaults={
+            "whatsapp_asesor": "", "telefono_fijo": "", "direccion": ""})
+        html = avisos_almacen()
+        self.assertIn("falta el WhatsApp del asesor", html)
+        self.assertIn("no tiene forma de contactar al almacén", html)
+
+    def test_con_alterno_no_menciona_falta_de_alterno(self):
+        ConfiguracionSitio.objects.update_or_create(pk=1, defaults={
+            "whatsapp_asesor": "", "telefono_fijo": "3001112222", "direccion": ""})
+        html = avisos_almacen()
+        self.assertNotIn("no tiene forma de contactar", html)
+        self.assertIn("mostrando el teléfono/dirección en su lugar", html)
 
     def test_avisa_inventario_viejo(self):
         self._con_whatsapp_ok()
@@ -285,4 +302,4 @@ class AvisosAdminTests(TestCase):
         # sin config -> el aviso debe salir en el HTML del index del admin
         resp = self.client.get("/admin/")
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "WhatsApp del asesor no está configurado")
+        self.assertContains(resp, "No hay datos de contacto configurados")
