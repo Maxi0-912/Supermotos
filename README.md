@@ -64,17 +64,19 @@ Ejemplo de cotización (POST JSON):
 ```
 
 ## Frontend
-`web_frontend.html` es la página con el bot. Para conectarla al backend,
-editar la primera línea del script:
-```js
-const API_URL = "https://tu-backend.up.railway.app";
-```
-Con `API_URL = ""` funciona en modo demo con datos de ejemplo.
+`web_frontend.html` (con su lógica en `static/js/bot.js`) la sirve Django en
+la raíz ("/"), en el mismo puerto que la API — no hace falta editar ninguna
+URL a mano ni en desarrollo ni en producción: `API_URL = ""` en `bot.js`
+significa "mismo origen", así que las llamadas a `/api/...` siempre apuntan
+solas al dominio donde esté corriendo el backend (Railway incluido).
+Para usar datos de ejemplo sin backend, cambiar `USAR_DEMO` a `true` en
+`static/js/bot.js`.
 
 ## Despliegue en Railway (igual que TuTaller)
 1. Subir este repo a GitHub y crear proyecto en Railway con PostgreSQL
-2. Variables: `SECRET_KEY`, `DATABASE_URL` (automática), `CSRF_ORIGIN`
-3. Añadir a settings para producción: whitenoise + dj_database_url (mismo patrón que BackendFull)
+2. Variables (ver `.env.example`): `SECRET_KEY`, `DATABASE_URL` (automática al
+   agregar el plugin de Postgres), `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `CSRF_ORIGIN`
+3. El `Procfile` ya corre `collectstatic` y `migrate` antes de levantar gunicorn
 4. `python manage.py createsuperuser` en la consola de Railway
 
 ## Pendientes cuando llegue el Excel real

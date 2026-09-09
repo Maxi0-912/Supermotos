@@ -13,8 +13,15 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 from pathlib import Path
 
+import dj_database_url
+from dotenv import load_dotenv
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Carga variables de un .env local si existe (nunca se commitea). En Railway
+# las variables ya vienen del entorno, así que esto simplemente no hace nada.
+load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -34,6 +41,8 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+# Se resuelve más abajo, después de detectar el entorno de producción
+# (ver bloque "Configuración del proyecto SuperMotos" al final del archivo).
 ALLOWED_HOSTS = []
 
 
@@ -54,6 +63,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -85,12 +95,20 @@ WSGI_APPLICATION = 'supermotos_backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Si existe DATABASE_URL (Railway con Postgres) se usa esa; si no, sigue
+# usando SQLite local como hasta ahora. El disco de Railway es efímero, por
+# eso en producción SIEMPRE debe estar configurada esta variable.
+if os.environ.get('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.parse(os.environ['DATABASE_URL']),
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -128,6 +146,13 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STORAGES = {
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 
 # --- Configuración del proyecto SuperMotos ---
@@ -135,16 +160,40 @@ STATIC_URL = 'static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# En desarrollo se permite todo; en producción restringir al dominio real
-CORS_ALLOW_ALL_ORIGINS = True
-
-REST_FRAMEWORK = {
-    'DEFAULT_THROTTLE_CLASSES': ['rest_framework.throttling.AnonRateThrottle'],
-    'DEFAULT_THROTTLE_RATES': {'anon': '120/min'},
-}
-
-# Producción (Railway): usar variables de entorno
+# Producción (Railway u otro host): variables de entorno. Se resuelve ANTES
+# de CORS/ALLOWED_HOSTS para que ambos queden calculados con el DEBUG final.
 if os.environ.get('RAILWAY_ENVIRONMENT'):
     DEBUG = False
-    ALLOWED_HOSTS = ['*']
     CSRF_TRUSTED_ORIGINS = [os.environ.get('CSRF_ORIGIN', 'https://*.up.railway.app')]
+
+# Lista separada por comas, ej: "supermotos.com,www.supermotos.com". Vacía en
+# desarrollo: con DEBUG=True, Django igual permite localhost/127.0.0.1.
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()]
+
+# En desarrollo se permite cualquier origen; en producción, solo los dominios
+# reales en CORS_ALLOWED_ORIGINS (misma lista separada por comas).
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+if not DEBUG:
+    CORS_ALLOWED_ORIGINS = [o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()]
+
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '120/min',
+        # Cotizaciones y citas: límite aparte y más estricto para que no
+        # spameen el calendario/las cotizaciones del almacén. Los catálogos
+        # de lectura (productos, motos) siguen solo con el límite 'anon'.
+        'escritura_publica': '5/hour',
+    },
+    # Railway pone exactamente UN proxy/edge delante del contenedor, que es
+    # quien agrega la IP real del visitante al final de X-Forwarded-For. Con
+    # NUM_PROXIES=1, DRF confía solo en ese último valor (no en lo que un
+    # cliente malicioso pueda inventarse al principio del header), así cada
+    # visitante real tiene su propio cupo de throttle en vez de compartir el
+    # de la IP interna del proxy. Sin proxy delante (runserver local) no
+    # cambia nada: sin X-Forwarded-For, DRF sigue usando REMOTE_ADDR igual.
+    'NUM_PROXIES': 1,
+}

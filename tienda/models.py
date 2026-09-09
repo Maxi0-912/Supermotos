@@ -1,6 +1,9 @@
 import re
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F
+
+from .busqueda import normalizar
 
 
 # ==========================================================================
@@ -102,6 +105,22 @@ class Producto(models.Model):
         help_text="Pega el enlace de una imagen si no quieres subir archivo")
     activo = models.BooleanField("Visible en la web", default=True)
     actualizado = models.DateTimeField(auto_now=True)
+    # Sin db_index: un B-tree normal no acelera un icontains ("LIKE '%x%'",
+    # comodín al inicio) -- confirmado con EXPLAIN QUERY PLAN en SQLite, sale
+    # "SCAN tienda_producto" con o sin índice. Además se recalcula en los
+    # ~3.088 productos en cada importación completa, así que un índice acá
+    # solo sumaría costo de escritura sin beneficio de lectura.
+    # Si la búsqueda se vuelve un cuello de botella real en producción
+    # (Postgres vía DATABASE_URL, no SQLite -- FTS5 no aplica, es exclusivo
+    # de SQLite): la extensión pg_trgm + un índice GIN sobre esta columna sí
+    # acelera icontains, y se agrega en una migración corta (CREATE EXTENSION
+    # pg_trgm; índice GIN con gin_trgm_ops) sin tocar este modelo ni
+    # busqueda.py. Los 19-22ms medidos para "aceite"/"filtro"/"llanta" son de
+    # SQLite local (dev) -- hay que volver a medir contra Postgres en Railway
+    # antes de decidir si hace falta pg_trgm.
+    texto_busqueda = models.TextField(
+        "Texto de búsqueda (uso interno)", blank=True, editable=False,
+        help_text="Se recalcula solo en save(); no editar a mano.")
 
     class Meta:
         verbose_name = "Producto"
@@ -126,21 +145,53 @@ class Producto(models.Model):
             return self.imagen_url
         return ""
 
-    def texto_busqueda(self):
-        return f"{self.referencia} {self.nombre} {self.modelos_compatibles} {self.categoria}".upper()
+    def save(self, *args, **kwargs):
+        # texto_busqueda se recalcula SIEMPRE al guardar (el importador usa
+        # update_or_create, que llama a save() tanto al crear como al
+        # actualizar) para que nunca quede desactualizado si el producto
+        # cambia de nombre o de modelos compatibles.
+        self.texto_busqueda = normalizar(
+            f"{self.referencia} {self.nombre} {self.modelos_compatibles} {self.categoria}")
+        # update_or_create() (el que usa el importador) llama a save() con
+        # update_fields=<solo los campos que cambiaron>. Sin este ajuste, el
+        # UPDATE de SQL nunca incluiría texto_busqueda -- quedaría recalculado
+        # en el objeto en memoria pero NO escrito en la base de datos.
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            kwargs["update_fields"] = set(update_fields) | {"texto_busqueda"}
+        super().save(*args, **kwargs)
 
 
 class Cotizacion(models.Model):
+    # nueva -> tomada -> vendida
+    #               \-> perdida (motivo obligatorio, ver clean())
+    # Dos vendedores comparten un solo WhatsApp: "tomada" (+ asesor/tomada_en)
+    # es lo que evita que los dos trabajen la misma cotización sin saberlo.
     ESTADOS = [
         ("nueva", "Nueva"),
-        ("contactado", "Cliente contactado"),
+        ("tomada", "Tomada"),
         ("vendida", "Vendida"),
-        ("vencida", "Vencida"),
+        ("perdida", "Perdida"),
+    ]
+    MOTIVOS_PERDIDA = [
+        ("sin_stock", "Sin stock real"),
+        ("precio", "Precio"),
+        ("no_contesto", "No contestó"),
+        ("otro_lado", "Compró en otro lado"),
+        ("otro", "Otro"),
     ]
     nombre_cliente = models.CharField("Nombre del cliente", max_length=120, blank=True)
     telefono = models.CharField("Teléfono / WhatsApp", max_length=30, blank=True)
     estado = models.CharField(max_length=15, choices=ESTADOS, default="nueva")
-    origen = models.CharField(max_length=20, default="web")  # web | whatsapp
+    origen = models.CharField(max_length=20, default="web")  # web | web-agotado | moto
+    # Texto libre y no FK a User: son dos vendedores de mostrador compartiendo
+    # un WhatsApp, sin cuentas propias en el panel. Si el equipo crece y hace
+    # falta forzar login por vendedor, esto se migra a FK sin perder datos.
+    asesor = models.CharField("Asesor que la tomó", max_length=80, blank=True)
+    tomada_en = models.DateTimeField("Tomada el", null=True, blank=True)
+    motivo_perdida = models.CharField("Motivo de pérdida", max_length=20,
+        choices=MOTIVOS_PERDIDA, blank=True)
+    notas_asesor = models.TextField("Notas del asesor", blank=True)
     creada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -150,6 +201,27 @@ class Cotizacion(models.Model):
 
     def __str__(self):
         return f"Cotización #{self.id:04d} ({self.get_estado_display()})"
+
+    def clean(self):
+        if self.estado == "perdida":
+            if not self.motivo_perdida:
+                raise ValidationError(
+                    {"motivo_perdida": "Obligatorio al marcar la cotización como perdida."})
+        else:
+            # motivo_perdida solo significa algo si estado == "perdida". Si un
+            # vendedor saca la cotización de ese estado (los dos comparten el
+            # WhatsApp y se corrigen entre sí), se limpia el motivo: una
+            # cotización vendida con motivo "no contestó" contaminaría el dato
+            # de pérdidas, que es el más valioso a mediano plazo. Con esto
+            # marcar_vendida / marcar_tomada lo limpian sin código extra.
+            self.motivo_perdida = ""
+
+    def save(self, *args, **kwargs):
+        # full_clean() (no solo la validación del form del admin) para que la
+        # regla de motivo_perdida obligatorio se cumpla también desde una
+        # acción masiva o desde el shell, no únicamente al editar a mano.
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     @property
     def total(self):
