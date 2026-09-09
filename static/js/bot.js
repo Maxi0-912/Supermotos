@@ -59,18 +59,28 @@ function mapProducto(p){
 async function apiBuscar(q){
   if(USAR_DEMO){
     const t = q.toLowerCase();
-    return INVENTARIO.filter(p =>
+    const items = INVENTARIO.filter(p =>
       (p.nombre+" "+p.modelo+" "+p.ref).toLowerCase().includes(t) ||
       t.split(" ").every(w => (p.nombre+" "+p.modelo).toLowerCase().includes(w)));
+    return {items, fallback:false};
   }
   try{
-    const r = await fetch(`${API_URL}/api/productos/?buscar=${encodeURIComponent(q)}&con_stock=1`);
-    return (await r.json()).map(mapProducto);
-  }catch(e){ console.error(e); return []; }
+    // priorizar_stock (no con_stock): el buscador del bot NO debe excluir
+    // los agotados -- los reordena al final para poder ofrecer "avísenme
+    // cuando llegue" en vez de decir que el producto no existe. con_stock
+    // aquí SÍ los quitaría del todo (ver tienda/busqueda.py y ProductoViewSet).
+    const r = await fetch(`${API_URL}/api/productos/?buscar=${encodeURIComponent(q)}&priorizar_stock=1`);
+    const items = (await r.json()).map(mapProducto);
+    // X-Busqueda-Fallback: el backend no encontró todas las palabras juntas
+    // y relajó la búsqueda (ver tienda/busqueda.py); el bot matiza el mensaje.
+    return {items, fallback: r.headers.get("X-Busqueda-Fallback") === "1"};
+  }catch(e){ console.error(e); return {items:[], fallback:false}; }
 }
 async function apiCatalogo(){
   if(USAR_DEMO) return INVENTARIO;
   try{
+    // con_stock=1 acá SÍ debe filtrar de verdad: el catálogo de la página no
+    // muestra agotados (a diferencia del buscador del bot, ver apiBuscar).
     const r = await fetch(`${API_URL}/api/productos/?con_stock=1`);
     return (await r.json()).slice(0,8).map(mapProducto);
   }catch(e){ console.error(e); return []; }
@@ -424,15 +434,19 @@ async function iniciarBusquedaRepuesto(){
   inp.focus();
 }
 async function buscar(q){
-  const res = await apiBuscar(q);
+  const {items:res, fallback} = await apiBuscar(q);
   if(!res.length){
     await botMsg(`No encontré "<b>${esc(q)}</b>" en el inventario 😅.\nProbá con otras palabras (ej: <i>pastillas, filtro de aire, bujía, kit de arrastre</i>) o decime el modelo de tu moto.`);
     return menu();
   }
   const hayStock = res.some(p => p.stock > 0);
   let html = hayStock
-    ? `<i data-lucide="check-circle" class="lucide" style="color:var(--verde)"></i> Encontré <b>${res.length}</b> resultado(s):`
-    : `<i data-lucide="triangle-alert" class="lucide" style="color:var(--rojo)"></i> Encontré <b>${res.length}</b> resultado(s), pero por ahora están agotados:`;
+    ? (fallback
+        ? `<i data-lucide="search" class="lucide" style="color:var(--rojo)"></i> No encontré exactamente "<b>${esc(q)}</b>", pero tengo <b>${res.length}</b> parecido(s):`
+        : `<i data-lucide="check-circle" class="lucide" style="color:var(--verde)"></i> Encontré <b>${res.length}</b> resultado(s):`)
+    : (fallback
+        ? `<i data-lucide="triangle-alert" class="lucide" style="color:var(--rojo)"></i> No encontré exactamente "<b>${esc(q)}</b>"; esto es lo más parecido, pero está agotado:`
+        : `<i data-lucide="triangle-alert" class="lucide" style="color:var(--rojo)"></i> Encontré <b>${res.length}</b> resultado(s), pero por ahora están agotados:`);
   res.slice(0,4).forEach(p=>{
     html += `<span class="divider"></span>` + chatProdHtml(p,
       `<b>${esc(p.nombre)}</b><br>Ref: ${esc(p.ref)}<br>Compatible: ${esc(p.modelo)}<br>Precio: <span class="price">${fmt(p.precio)}</span><br>` +
@@ -442,10 +456,38 @@ async function buscar(q){
   const btns = res.slice(0,3).map(p => ({
     icon: p.stock > 0 ? "plus" : "bell",
     label: (p.stock > 0 ? "Agregar " : "Avísenme ") + p.nombre.split(" ").slice(0,3).join(" "),
-    action: ()=>agregar(p)
+    action: p.stock > 0 ? ()=>agregar(p) : ()=>pedirContactoAgotado(p)
   }));
   btns.push({icon:"arrow-left", label:"Accesos rápidos", action: menu});
   botButtons(btns);
+}
+/* Un producto agotado NO se agrega a la cotización (agregar() es para lo que
+   sí se va a comprar ya); en vez de eso se captura el contacto para avisar
+   cuando llegue, igual que pedirDatosPedido() pero guardando la solicitud
+   con origen "web-agotado" para que Ana distinga un aviso de stock de un
+   pedido real en el admin. */
+async function pedirContactoAgotado(p){
+  await botMsg(chatProdHtml(p,
+    `<i data-lucide="bell" class="lucide"></i> Te aviso apenas llegue <b>${esc(p.nombre)}</b>. Escríbeme tu <b>nombre y número de WhatsApp</b> (ej: <i>Carlos Gómez 3001234567</i>)`));
+  captura = (txt)=>confirmarAvisoStock(txt, p);
+}
+async function confirmarAvisoStock(txt, p){
+  const d = extraerDatos(txt);
+  if(!d.telefono){
+    await botMsg("No logré identificar un número de WhatsApp válido 😅. Escríbeme tu nombre y un número de contacto, por favor.");
+    captura = (t)=>confirmarAvisoStock(t, p);
+    return;
+  }
+  try{
+    await apiCrearCotizacion({
+      nombre_cliente: d.nombre, telefono: d.telefono, origen: "web-agotado",
+      items: [{producto_id:p.id, cantidad:1}],
+    });
+    await botMsg(`<i data-lucide="check-circle" class="lucide" style="color:var(--verde)"></i> ¡Listo, ${esc(d.nombre.split(" ")[0])}! Te contactamos al <b>${esc(d.telefono)}</b> apenas tengamos <b>${esc(p.nombre)}</b> disponible.`);
+  }catch(e){
+    await botMsg("Tuvimos un problema guardando tu solicitud 😔. Intenta de nuevo o escríbenos al WhatsApp del almacén.");
+  }
+  await menu();
 }
 async function agregar(p){
   cotizacion.push(p);

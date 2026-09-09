@@ -40,14 +40,25 @@ class ProductoViewSet(viewsets.ReadOnlyModelViewSet):
         texto = self.request.query_params.get("buscar", "").strip()
         categoria = self.request.query_params.get("categoria", "").strip().lower()
         modelo = self.request.query_params.get("modelo", "").strip()
-        solo_stock = bool(self.request.query_params.get("con_stock", ""))
+        # con_stock filtra de verdad (excluye agotados); priorizar_stock solo
+        # reordena (los agotados quedan al final, sin desaparecer). Antes un
+        # mismo parámetro con_stock hacía una cosa acá y otra en la rama de
+        # abajo -- separados para que cada uno signifique una sola cosa.
+        con_stock = bool(self.request.query_params.get("con_stock", ""))
+        priorizar_stock = bool(self.request.query_params.get("priorizar_stock", ""))
 
         if texto:
             # Motor conversacional: entiende pieza + modelo, sinónimos de
-            # taller y ~50 modelos reales del inventario. No excluye los
-            # agotados (los reordena al final) para que el bot pueda ofrecer
-            # "avísenme cuando llegue" en vez de decir que no existen.
-            productos, _piezas, _modelos = busqueda.buscar(texto, solo_stock=solo_stock)
+            # taller y ~50 modelos reales del inventario. Por defecto NO
+            # excluye los agotados (los reordena al final, priorizar_stock)
+            # para que el bot pueda ofrecer "avísenme cuando llegue" en vez
+            # de decir que no existen.
+            productos, _piezas, _modelos, uso_fallback = busqueda.buscar(
+                texto, con_stock=con_stock, priorizar_stock=priorizar_stock)
+            # Se guarda para que list() lo exponga como header (ver abajo):
+            # así el bot puede matizar "no encontré exactamente eso, pero..."
+            # sin cambiar la forma del JSON (sigue siendo una lista plana).
+            self._uso_fallback = uso_fallback
             return productos
 
         qs = Producto.objects.filter(activo=True)
@@ -67,9 +78,15 @@ class ProductoViewSet(viewsets.ReadOnlyModelViewSet):
                 # categoría libre (no es uno de los chips): compatibilidad
                 # con el campo `categoria` real de Celeste.
                 qs = qs.filter(categoria__icontains=categoria)
-        if solo_stock:
+        if con_stock:
             qs = qs.filter(stock__gt=0)
         return qs[:60]
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        if getattr(self, "_uso_fallback", False):
+            response["X-Busqueda-Fallback"] = "1"
+        return response
 
 
 class MotocicletaViewSet(viewsets.ReadOnlyModelViewSet):

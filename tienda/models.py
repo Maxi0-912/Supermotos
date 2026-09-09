@@ -2,6 +2,8 @@ import re
 from django.db import models
 from django.db.models import F
 
+from .busqueda import normalizar
+
 
 # ==========================================================================
 # PARSEO DE DESCRIPCIONES DE CELESTE
@@ -102,6 +104,22 @@ class Producto(models.Model):
         help_text="Pega el enlace de una imagen si no quieres subir archivo")
     activo = models.BooleanField("Visible en la web", default=True)
     actualizado = models.DateTimeField(auto_now=True)
+    # Sin db_index: un B-tree normal no acelera un icontains ("LIKE '%x%'",
+    # comodín al inicio) -- confirmado con EXPLAIN QUERY PLAN en SQLite, sale
+    # "SCAN tienda_producto" con o sin índice. Además se recalcula en los
+    # ~3.088 productos en cada importación completa, así que un índice acá
+    # solo sumaría costo de escritura sin beneficio de lectura.
+    # Si la búsqueda se vuelve un cuello de botella real en producción
+    # (Postgres vía DATABASE_URL, no SQLite -- FTS5 no aplica, es exclusivo
+    # de SQLite): la extensión pg_trgm + un índice GIN sobre esta columna sí
+    # acelera icontains, y se agrega en una migración corta (CREATE EXTENSION
+    # pg_trgm; índice GIN con gin_trgm_ops) sin tocar este modelo ni
+    # busqueda.py. Los 19-22ms medidos para "aceite"/"filtro"/"llanta" son de
+    # SQLite local (dev) -- hay que volver a medir contra Postgres en Railway
+    # antes de decidir si hace falta pg_trgm.
+    texto_busqueda = models.TextField(
+        "Texto de búsqueda (uso interno)", blank=True, editable=False,
+        help_text="Se recalcula solo en save(); no editar a mano.")
 
     class Meta:
         verbose_name = "Producto"
@@ -126,8 +144,21 @@ class Producto(models.Model):
             return self.imagen_url
         return ""
 
-    def texto_busqueda(self):
-        return f"{self.referencia} {self.nombre} {self.modelos_compatibles} {self.categoria}".upper()
+    def save(self, *args, **kwargs):
+        # texto_busqueda se recalcula SIEMPRE al guardar (el importador usa
+        # update_or_create, que llama a save() tanto al crear como al
+        # actualizar) para que nunca quede desactualizado si el producto
+        # cambia de nombre o de modelos compatibles.
+        self.texto_busqueda = normalizar(
+            f"{self.referencia} {self.nombre} {self.modelos_compatibles} {self.categoria}")
+        # update_or_create() (el que usa el importador) llama a save() con
+        # update_fields=<solo los campos que cambiaron>. Sin este ajuste, el
+        # UPDATE de SQL nunca incluiría texto_busqueda -- quedaría recalculado
+        # en el objeto en memoria pero NO escrito en la base de datos.
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            kwargs["update_fields"] = set(update_fields) | {"texto_busqueda"}
+        super().save(*args, **kwargs)
 
 
 class Cotizacion(models.Model):
