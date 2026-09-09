@@ -118,12 +118,14 @@ class CotizacionViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     """POST /api/cotizaciones/  (el bot y la web crean cotizaciones)"""
     queryset = Cotizacion.objects.all()
     serializer_class = CotizacionSerializer
+    throttle_scope = 'escritura_publica'
 
 
 class CitaViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     """POST /api/citas/"""
     queryset = Cita.objects.all()
     serializer_class = CitaSerializer
+    throttle_scope = 'escritura_publica'
 
 
 @api_view(["POST"])

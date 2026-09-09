@@ -9,12 +9,19 @@ venv/
 db.sqlite3
 *.sqlite3
 
+# Estáticos recolectados por collectstatic (whitenoise los sirve desde acá
+# en producción; no hace falta versionarlos)
+staticfiles/
+
 # Bytecode de Python
 __pycache__/
 *.pyc
 
 # Archivos subidos por usuarios (fotos de productos/motos)
 media/
+
+# Excel de inventario de Celeste (datos reales del negocio del cliente)
+*.xlsx
 
 # Logs
 runserver.log
