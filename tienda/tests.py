@@ -1,16 +1,20 @@
 import importlib
+from datetime import timedelta
 
 from django.apps import apps as global_apps
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import connection
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.test.client import RequestFactory
 from django.test.utils import CaptureQueriesContext
+from django.urls import reverse
 from django.utils import timezone
 
 from .admin import CotizacionAdmin, PerderForm, TomarForm
-from .models import Cotizacion, ItemCotizacion, Producto
+from .models import (Cotizacion, ConfiguracionSitio, ImportacionInventario,
+                     ItemCotizacion, Producto)
+from .templatetags.almacen_avisos import avisos_almacen
 
 
 def _producto(precio=1000, **extra):
@@ -198,3 +202,87 @@ class MigracionEstadosTests(TestCase):
         revertida = Cotizacion.objects.get(pk=pk)
         self.assertEqual(revertida.estado, "vencida")
         self.assertEqual(revertida.motivo_perdida, "")
+
+
+class WhatsAppAsesorTests(TestCase):
+    """C.2 — validación del número del asesor (el que rompe todo si está mal)."""
+
+    def test_normaliza_a_digitos(self):
+        c = ConfiguracionSitio(whatsapp_asesor="+57 (300) 123-4567")
+        c.full_clean()
+        self.assertEqual(c.whatsapp_asesor, "573001234567")
+        self.assertTrue(c.whatsapp_valido)
+
+    def test_vacio_es_valido_de_form_pero_no_plausible(self):
+        c = ConfiguracionSitio(whatsapp_asesor="")
+        c.full_clean()  # no rompe: el frontend degrada
+        self.assertFalse(c.whatsapp_valido)
+
+    def test_numero_corto_se_rechaza(self):
+        for malo in ["57", "300123", "12345"]:
+            with self.assertRaises(ValidationError, msg=malo) as ctx:
+                ConfiguracionSitio(whatsapp_asesor=malo).full_clean()
+            self.assertIn("whatsapp_asesor", ctx.exception.message_dict)
+
+    def test_numero_largo_se_rechaza(self):
+        with self.assertRaises(ValidationError):
+            ConfiguracionSitio(whatsapp_asesor="1" * 16).full_clean()
+
+    def test_no_hay_default_trampa(self):
+        # instalación nueva: get_or_create no debe dejar "57" ni nada inválido
+        c, _ = ConfiguracionSitio.objects.get_or_create(pk=1)
+        self.assertEqual(c.whatsapp_asesor, "")
+        self.assertFalse(c.whatsapp_valido)
+
+
+class AvisosAdminTests(TestCase):
+    """C.2 — la franja de avisos del admin."""
+
+    def _con_whatsapp_ok(self):
+        ConfiguracionSitio.objects.update_or_create(
+            pk=1, defaults={"whatsapp_asesor": "573001234567"})
+
+    def test_avisa_whatsapp_mal_configurado(self):
+        self._con_whatsapp_ok()
+        ImportacionInventario.objects.create(creados=1)  # fecha = ahora
+        self.assertEqual(avisos_almacen(), "")
+
+        ConfiguracionSitio.objects.filter(pk=1).update(whatsapp_asesor="57")
+        self.assertIn("WhatsApp del asesor", avisos_almacen())
+
+    def test_avisa_inventario_viejo(self):
+        self._con_whatsapp_ok()
+        imp = ImportacionInventario.objects.create(creados=1)
+        ImportacionInventario.objects.filter(pk=imp.pk).update(
+            fecha=timezone.now() - timedelta(hours=72))
+        html = avisos_almacen()
+        self.assertIn("no se actualiza hace 72 horas", html)
+
+    def test_sin_importaciones_tambien_avisa(self):
+        self._con_whatsapp_ok()
+        self.assertIn("no se importó ningún inventario", avisos_almacen())
+
+    def test_cada_aviso_enlaza_a_su_pantalla(self):
+        # WhatsApp mal + sin inventario: los dos avisos, con sus dos enlaces.
+        ConfiguracionSitio.objects.update_or_create(
+            pk=1, defaults={"whatsapp_asesor": ""})
+        html = avisos_almacen()
+        self.assertIn(
+            'href="%s"' % reverse("admin:tienda_configuracionsitio_changelist"), html)
+        self.assertIn(
+            'href="%s"' % reverse("admin:tienda_importacioninventario_subir"), html)
+
+    # el admin renderiza {% static %} y en prod usa el manifest de whitenoise
+    # (que necesita collectstatic); en tests basta el almacenamiento simple.
+    @override_settings(STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    })
+    def test_banner_visible_en_el_admin(self):
+        User = get_user_model()
+        User.objects.create_superuser("ana", "ana@almacen.co", "x")
+        self.client.force_login(User.objects.get(username="ana"))
+        # sin config -> el aviso debe salir en el HTML del index del admin
+        resp = self.client.get("/admin/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "WhatsApp del asesor no está configurado")

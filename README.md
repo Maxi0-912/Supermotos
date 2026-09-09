@@ -53,8 +53,8 @@ en `tienda/importador.py` si alguna columna no se detecta.
 |---|---|---|
 | GET | `/api/productos/?buscar=pastillas+cb160&con_stock=1` | Buscador del bot y catálogo |
 | GET | `/api/productos/?modelo=CB160F` | Filtro por moto |
+| GET | `/api/config/` | Datos de contacto del almacén (WhatsApp, teléfono, dirección) |
 | POST | `/api/cotizaciones/` | El bot guarda cotizaciones |
-| POST | `/api/citas/` | El bot agenda citas |
 | POST | `/api/importar-inventario/` | Subida del Excel (solo admin) |
 
 Ejemplo de cotización (POST JSON):
@@ -71,6 +71,25 @@ significa "mismo origen", así que las llamadas a `/api/...` siempre apuntan
 solas al dominio donde esté corriendo el backend (Railway incluido).
 Para usar datos de ejemplo sin backend, cambiar `USAR_DEMO` a `true` en
 `static/js/bot.js`.
+
+Los datos de contacto (WhatsApp, teléfono fijo, dirección) NO están en el
+HTML: salen de `/api/config/` → **Admin → Configuración del sitio**, una sola
+fuente para el bot, el pie de página y la sección de taller. Si el WhatsApp
+no está bien cargado, el sitio esconde el botón y muestra el teléfono/dirección
+en su lugar (nunca un enlace a un número inventado).
+
+## Antes de publicar (checklist obligatorio)
+- [ ] **Reemplazar el número de pruebas.** En **Admin → Configuración del
+  sitio**, cambiar `whatsapp_asesor` (hoy `573167599778`, número de pruebas)
+  por el **WhatsApp exclusivo del almacén**. Un número de pruebas en producción
+  manda clientes reales al teléfono equivocado y, con dos vendedores atendiendo,
+  nadie se entera. El campo valida 10–15 dígitos con indicativo de país.
+- [ ] Cargar `telefono_fijo` y `direccion` del almacén en esa misma pantalla
+  (son la alternativa visible si el WhatsApp llega a fallar, y la dirección
+  alimenta el pie de página y la sección de taller).
+- [ ] Entrar al admin y confirmar que **no aparece la franja amarilla de
+  avisos** arriba (número mal configurado / inventario sin actualizar).
+- [ ] Importar el inventario real de Celeste (ver arriba).
 
 ## Despliegue en Railway (igual que TuTaller)
 1. Subir este repo a GitHub y crear proyecto en Railway con PostgreSQL

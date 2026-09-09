@@ -1,0 +1,10 @@
+{% extends "admin/base_site.html" %}
+{% load almacen_avisos %}
+
+{# pretitle se renderiza al principio del contenido en TODAS las páginas del
+   admin (lo define admin/base.html), así el aviso se ve al entrar y no queda
+   escondido en una sección. #}
+{% block pretitle %}
+  {{ block.super }}
+  {% avisos_almacen %}
+{% endblock %}

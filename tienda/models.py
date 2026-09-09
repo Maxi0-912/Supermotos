@@ -346,14 +346,42 @@ class Motocicleta(models.Model):
 
 class ConfiguracionSitio(models.Model):
     """Configuración general del sitio (singleton: una sola fila).
-    Así el número de WhatsApp del asesor no queda quemado en el código
-    y Ana lo puede cambiar desde el admin."""
-    whatsapp_asesor = models.CharField("WhatsApp del asesor", max_length=20,
-        default="57", help_text="Solo números con indicativo, ej: 573001234567")
+    Fuente ÚNICA de los datos de contacto en todo el proyecto (bot, pie de
+    página, sección de taller): así no quedan quemados en el HTML ni repetidos
+    en tres formatos distintos, y Ana los cambia desde el admin."""
+    # Sin default: en instalación nueva queda vacío y el frontend degrada al
+    # teléfono/dirección en vez de generar un wa.me con un número inventado.
+    # El viejo default "57" era una trampa: producía un enlace válido en forma
+    # pero inútil en destino, sin que nada avisara.
+    whatsapp_asesor = models.CharField("WhatsApp del asesor", max_length=20, blank=True,
+        help_text="Solo dígitos, con indicativo de país: 10 a 15. Ej: 573001234567. "
+                  "Si queda vacío o mal, el sitio oculta el botón de WhatsApp y "
+                  "muestra el teléfono fijo / la dirección en su lugar.")
     nombre_asesor = models.CharField(max_length=80, blank=True, default="Asesor comercial")
+    telefono_fijo = models.CharField("Teléfono fijo del almacén", max_length=30, blank=True,
+        help_text="Alternativa visible cuando el WhatsApp no está disponible. Opcional.")
+    direccion = models.CharField("Dirección del almacén", max_length=200, blank=True,
+        help_text="Se usa en el pie de página, la sección de taller y como "
+                  "alternativa al WhatsApp. Opcional.")
 
     class Meta:
         verbose_name = "Configuración del sitio"
         verbose_name_plural = "Configuración del sitio"
 
     def __str__(self): return "Configuración del sitio"
+
+    def clean(self):
+        # Normaliza a solo dígitos y valida un largo plausible (rango E.164,
+        # 10-15). Vacío se permite (el frontend degrada). Un número presente
+        # pero corto -- "57", "300123" -- se rechaza con un mensaje para Ana
+        # en vez de romper en silencio todos los botones de WhatsApp del sitio.
+        self.whatsapp_asesor = re.sub(r"\D", "", self.whatsapp_asesor or "")
+        if self.whatsapp_asesor and not (10 <= len(self.whatsapp_asesor) <= 15):
+            raise ValidationError({"whatsapp_asesor":
+                "El WhatsApp debe tener entre 10 y 15 dígitos e incluir el indicativo "
+                "de país (Colombia: 57). Ejemplo: 573001234567."})
+
+    @property
+    def whatsapp_valido(self):
+        """Mismo criterio que usa el frontend para decidir si muestra el botón."""
+        return 10 <= len(self.whatsapp_asesor or "") <= 15

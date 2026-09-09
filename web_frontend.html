@@ -275,6 +275,10 @@
     letter-spacing:.5px;text-transform:uppercase;text-decoration:none;cursor:pointer;transition:background .15s;
   }
   .btn-wa:hover{background:#1fb355}
+  /* canal alterno: se muestra en vez del botón de WhatsApp cuando el número
+     del asesor no está bien configurado (ver waAsesor() en bot.js) */
+  .canal-alterno{font-size:13.5px;line-height:1.6;color:var(--gris);display:flex;flex-direction:column;gap:2px}
+  .canal-alterno .lucide{width:1.1em;height:1.1em;margin-right:4px;vertical-align:-2px}
   .btn-detalle{
     background:transparent;border:1.5px solid var(--linea);color:var(--negro);border-radius:8px;
     padding:11px;font-family:'Inter';font-weight:700;font-size:14.5px;letter-spacing:.5px;
@@ -554,7 +558,7 @@
     </div>
     <div class="taller-info reveal">
       <div class="taller-info-item"><i data-lucide="clock" class="lucide"></i><div><h4>Horario de atención</h4><p>Lunes a sábado, 8:00 am – 6:00 pm</p></div></div>
-      <div class="taller-info-item"><i data-lucide="map-pin" class="lucide"></i><div><h4>Dirección</h4><p>Popayán, Cauca</p></div></div>
+      <div class="taller-info-item"><i data-lucide="map-pin" class="lucide"></i><div><h4>Dirección</h4><p id="tallerDireccion">Popayán, Cauca</p></div></div>
       <a class="taller-info-item" id="tallerWa" href="#" target="_blank" rel="noopener"><i data-lucide="message-circle" class="lucide"></i><div><h4>¿Necesitas el taller?</h4><p>Escríbenos por WhatsApp</p></div></a>
     </div>
   </div>
@@ -596,13 +600,13 @@
     </div>
     <div>
       <h4>Contacto</h4>
-      <p><i data-lucide="map-pin" class="lucide"></i> Popayán, Cauca<br><i data-lucide="phone" class="lucide"></i> (60x) xxx xx xx<br><i data-lucide="message-circle" class="lucide"></i> WhatsApp: 3xx xxx xxxx</p>
+      <p id="footerContacto"><i data-lucide="map-pin" class="lucide"></i> Popayán, Cauca</p>
     </div>
     <div>
       <h4>Horario</h4>
       <p>Lunes a sábado<br>8:00 am – 6:00 pm<br><b style="color:#fff">Asistente virtual: 24/7</b></p>
     </div>
-    <div class="footer-demo"><i data-lucide="triangle-alert" class="lucide"></i> Sitio de demostración — Los productos, precios, datos de contacto y fotografías (referenciales, no de los productos reales) son de ejemplo.</div>
+    <div class="footer-demo"><i data-lucide="triangle-alert" class="lucide"></i> Sitio de demostración — Los productos, precios y fotografías (referenciales, no de los productos reales) son de ejemplo.</div>
   </div>
 </footer>
 

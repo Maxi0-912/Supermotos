@@ -35,7 +35,7 @@ class MotocicletaSerializer(FotoSerializerMixin, serializers.ModelSerializer):
 class ConfiguracionSitioSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConfiguracionSitio
-        fields = ["whatsapp_asesor", "nombre_asesor"]
+        fields = ["whatsapp_asesor", "nombre_asesor", "telefono_fijo", "direccion"]
 
 
 class ItemCotizacionSerializer(serializers.ModelSerializer):
