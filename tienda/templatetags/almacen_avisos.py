@@ -25,13 +25,27 @@ def _avisos():
 
     cfg = ConfiguracionSitio.objects.first()
     if cfg is None or not cfg.whatsapp_valido:
-        avisos.append((
-            "El WhatsApp del asesor no está configurado o no es válido: el sitio "
-            "está ocultando el botón de WhatsApp y mostrando el teléfono/dirección "
-            "en su lugar.",
-            reverse("admin:tienda_configuracionsitio_changelist"),
-            "Configurar el WhatsApp",
-        ))
+        sin_alterno = cfg is None or not (cfg.telefono_fijo or cfg.direccion)
+        if sin_alterno:
+            # Estado de arranque de cualquier instalación nueva: sin WhatsApp y
+            # sin nada que mostrar en su lugar, el cliente no tiene NINGUNA vía
+            # de contacto. Se avisan las dos cosas juntas.
+            avisos.append((
+                "No hay datos de contacto configurados: falta el WhatsApp del "
+                "asesor y también el teléfono fijo / la dirección que se muestran "
+                "cuando el WhatsApp no está disponible. Ahora mismo el cliente no "
+                "tiene forma de contactar al almacén desde el sitio.",
+                reverse("admin:tienda_configuracionsitio_changelist"),
+                "Completar los datos de contacto",
+            ))
+        else:
+            avisos.append((
+                "El WhatsApp del asesor no está configurado o no es válido: el "
+                "sitio está ocultando el botón de WhatsApp y mostrando el "
+                "teléfono/dirección en su lugar.",
+                reverse("admin:tienda_configuracionsitio_changelist"),
+                "Configurar el WhatsApp",
+            ))
 
     subir_url = reverse("admin:tienda_importacioninventario_subir")
     ultima = ImportacionInventario.objects.order_by("-fecha").first()
