@@ -148,7 +148,13 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Django 6 NO completa las claves que falten: hay que declarar 'default'
+# explícitamente o cualquier escritura de FileField (subir el Excel de Celeste,
+# una foto de producto) revienta con InvalidStorageError.
 STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
     },
