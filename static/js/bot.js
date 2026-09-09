@@ -22,7 +22,11 @@ const INVENTARIO = [
   {id:7, nombre:"Kit cilindro completo", ref:"12100-KRE-D00", modelo:"XR150L", precio:265000, stock:2},
   {id:8, nombre:"Llanta trasera 100/80-17", ref:"42711-KYJ-D01", modelo:"CB160F DLX", precio:158000, stock:5},
 ];
-const fmt = n => "$" + Math.round(n).toLocaleString("es-CO");
+/* Pesos colombianos, formato determinista: puntos de miles, sin decimales.
+   No usa toLocaleString("es-CO") porque en un navegador sin datos ICU/Intl
+   completos el mismo número sale como "42,000" o "42000" (nunca "$42", pero
+   inconsistente de un dispositivo a otro). */
+const fmt = n => "$" + Math.round(Number(n) || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
 /* ================= PLACA DE PRODUCTO (sin foto elegida) =================
    Ana elige a mano la foto de cada producto desde el admin (imagen subida
@@ -102,22 +106,71 @@ async function apiCrearCotizacion(datos){
     headers:{"Content-Type":"application/json"}, body:JSON.stringify(datos)});
   return await r.json();
 }
-/* ================= MOTOS (concesionario) + CONFIG (WhatsApp asesor) =================
-   El número de WhatsApp NO se quema en el HTML: se trae de /api/config/
-   para que Ana lo pueda cambiar desde el admin sin tocar código. */
-let CONFIG_SITIO = {whatsapp_asesor:"573001234567", nombre_asesor:"Asesor comercial"};
+/* ================= CONTACTO DEL ALMACÉN (fuente única: /api/config/) =================
+   Ningún dato de contacto se quema en el HTML: WhatsApp, teléfono fijo y
+   dirección salen de ConfiguracionSitio (admin). Los valores por defecto son
+   VACÍOS a propósito: si /api/config/ se cae, el sitio degrada (esconde el
+   botón de WhatsApp, muestra el canal alterno) en vez de mandar clientes a un
+   número inventado con el mensaje bien formado y sin aviso. */
+let CONFIG_SITIO = {whatsapp_asesor:"", nombre_asesor:"", telefono_fijo:"", direccion:""};
 async function cargarConfig(){
   if(USAR_DEMO) return;
   try{
     const r = await fetch(`${API_URL}/api/config/`);
     CONFIG_SITIO = await r.json();
-  }catch(e){ console.error(e); }
+  }catch(e){ console.error(e); }   // se queda con los vacíos -> degrada, no miente
 }
 const configListo = cargarConfig();
+
+/* El número del asesor es el único dato que, mal configurado, rompe TODOS los
+   botones de WhatsApp del sitio. Se valida más estricto que el del cliente
+   (10-15 dígitos, no 7: siempre lleva indicativo de país). Si no es plausible
+   devuelve "" y quien llama esconde el botón y muestra el canal alterno. */
+function waAsesor(){
+  const d = String(CONFIG_SITIO.whatsapp_asesor || "").replace(/\D/g, "");
+  return (d.length >= 10 && d.length <= 15) ? d : "";
+}
+
+/* Canal alterno cuando no hay WhatsApp válido: teléfono fijo y/o dirección,
+   lo que Ana haya cargado. Si no cargó ninguno devuelve "" y quien llama
+   simplemente no muestra nada (mejor vacío que un dato de ejemplo). */
+function canalAlternoHtml(){
+  const tel = CONFIG_SITIO.telefono_fijo, dir = CONFIG_SITIO.direccion;
+  if(!tel && !dir) return "";
+  return `<div class="canal-alterno">` +
+    (tel ? `<i data-lucide="phone" class="lucide"></i> ${esc(tel)}` : "") +
+    (tel && dir ? "<br>" : "") +
+    (dir ? `<i data-lucide="map-pin" class="lucide"></i> ${esc(dir)}` : "") +
+    `</div>`;
+}
 
 function linkWhatsApp(numero, texto){
   const limpio = String(numero || "").replace(/\D/g, "");
   return `https://wa.me/${limpio}?text=${encodeURIComponent(texto)}`;
+}
+
+/* Contacto del pie de página y de la sección de taller: misma fuente única.
+   Lo que Ana no haya cargado, no se muestra (sin datos de ejemplo). */
+function pintarContacto(){
+  const num = waAsesor();
+  const dir = CONFIG_SITIO.direccion, tel = CONFIG_SITIO.telefono_fijo;
+  const footer = document.getElementById("footerContacto");
+  if(footer){
+    footer.innerHTML = [
+      dir && `<i data-lucide="map-pin" class="lucide"></i> ${esc(dir)}`,
+      tel && `<i data-lucide="phone" class="lucide"></i> ${esc(tel)}`,
+      num && `<i data-lucide="message-circle" class="lucide"></i> WhatsApp: ${esc(num)}`,
+    ].filter(Boolean).join("<br>") || "Datos de contacto no configurados todavía.";
+  }
+  // La tarjeta "Dirección" de la sección de taller: se llena o se oculta
+  // entera (una tarjeta con título y sin contenido se ve rota).
+  const td = document.getElementById("tallerDireccion");
+  if(td){
+    td.textContent = dir;
+    const card = td.closest(".taller-info-item");
+    if(card) card.style.display = dir ? "" : "none";
+  }
+  lucide.createIcons();
 }
 function mensajeCotizarMoto(m){
   return `Hola, me interesa la ${m.nombre} (${fmt(m.precio)}). ¿Me pueden dar más información?`;
@@ -237,10 +290,15 @@ function renderMotos(lista){
     lucide.createIcons();
     return;
   }
+  const num = waAsesor();
   lista.forEach(m=>{
     const c = document.createElement("div");
     c.className = "moto-card";
-    const wa = linkWhatsApp(CONFIG_SITIO.whatsapp_asesor, mensajeCotizarMoto(m));
+    // Sin WhatsApp válido: en vez del botón, el canal alterno (o nada si Ana
+    // tampoco cargó teléfono/dirección). Nunca un botón que va a la nada.
+    const ctaWa = num
+      ? `<a class="btn-wa" href="${linkWhatsApp(num, mensajeCotizarMoto(m))}" target="_blank" rel="noopener"><i data-lucide="message-circle" class="lucide"></i> Cotizar por WhatsApp</a>`
+      : canalAlternoHtml();
     c.innerHTML = `
       <div class="moto-img">
         ${m.destacada ? `<span class="moto-destacada"><i data-lucide="star" class="lucide"></i> Destacada</span>` : ""}
@@ -257,7 +315,7 @@ function renderMotos(lista){
         <div class="moto-precio">${fmt(m.precio)}</div>
         ${m.descripcion ? `<p class="moto-desc" id="desc-${m.id}">${esc(m.descripcion)}</p>` : ""}
         <div class="moto-ctas">
-          <a class="btn-wa" href="${wa}" target="_blank" rel="noopener"><i data-lucide="message-circle" class="lucide"></i> Cotizar por WhatsApp</a>
+          ${ctaWa}
           ${m.descripcion ? `<button class="btn-detalle" onclick="toggleDetalleMoto(${m.id})">Ver detalle</button>` : ""}
         </div>
       </div>`;
@@ -278,9 +336,26 @@ pintarMotos();
 /* ================= TALLER (informativo, ya no agenda citas) ================= */
 async function pintarTallerWa(){
   await configListo;
+  pintarContacto();   // pie de página + dirección de la sección de taller
   const a = document.getElementById("tallerWa");
-  if(a) a.href = linkWhatsApp(CONFIG_SITIO.whatsapp_asesor,
-    "Hola, quiero información sobre el servicio de taller de SuperMotos La 4ta");
+  if(!a) return;
+  const num = waAsesor();
+  if(num){
+    a.href = linkWhatsApp(num,
+      "Hola, quiero información sobre el servicio de taller de SuperMotos La 4ta");
+  }else{
+    // Sin WhatsApp válido: la tarjeta-enlace pasa a mostrar el canal alterno,
+    // o se oculta si Ana tampoco cargó teléfono/dirección.
+    const alt = canalAlternoHtml();
+    a.removeAttribute("href"); a.removeAttribute("target");
+    if(alt){
+      a.style.cursor = "default";
+      a.querySelector("div").innerHTML = "<h4>¿Necesitas el taller?</h4>" + alt;
+    }else{
+      a.style.display = "none";
+    }
+    lucide.createIcons();
+  }
 }
 pintarTallerWa();
 
@@ -519,11 +594,14 @@ async function confirmarPedidoConDatos(txt){
     await botMsg(`🎉 ¡Pedido registrado, ${esc(d.nombre.split(" ")[0])}!\nCotización <b>#${numero}</b> guardada.\nUn asesor te contactará al <b>${esc(d.telefono)}</b> para coordinar pago y entrega. 🛵💨`);
     cotizacion = [];
     await configListo;
-    botButtons([
-      {icon:"message-circle", iconColor:"var(--verde-wa)", label:"Enviar resumen por WhatsApp",
-       href: linkWhatsApp(CONFIG_SITIO.whatsapp_asesor, mensajeResumenCotizacion(numero, d, itemsCotizados))},
-      {icon:"user-round", label:"Hablar con un asesor", action: asesor},
-    ]);
+    const num = waAsesor();
+    const botones = [];
+    if(num){
+      botones.push({icon:"message-circle", iconColor:"var(--verde-wa)", label:"Enviar resumen por WhatsApp",
+        href: linkWhatsApp(num, mensajeResumenCotizacion(numero, d, itemsCotizados))});
+    }
+    botones.push({icon:"user-round", label:"Hablar con un asesor", action: asesor});
+    botButtons(botones);
   }catch(e){
     await botMsg("Tuvimos un problema guardando el pedido 😔. Intenta de nuevo en un momento o escríbenos al WhatsApp del almacén.");
     cotizacion = [];
@@ -537,11 +615,21 @@ async function vaciar(){
 }
 async function asesor(){
   await configListo;
-  await botMsg("<i data-lucide=\"user-round\" class=\"lucide\"></i> Te conecto con uno de nuestros asesores.\n<i data-lucide=\"clock\" class=\"lucide\"></i> Tiempo estimado de respuesta: <b>5 minutos</b> (L-S, 8am a 6pm).\n\nTambién puedes escribirle directo por WhatsApp. 😉");
-  botButtons([
-    {icon:"message-circle", iconColor:"var(--verde-wa)", label:"Abrir WhatsApp", href: linkWhatsApp(CONFIG_SITIO.whatsapp_asesor, "Hola, vengo de la página web y necesito ayuda")},
-    {icon:"receipt", label:"Ver mi cotización" + (cotizacion.length ? ` (${cotizacion.length})` : ""), action: verCotizacion},
-  ]);
+  const num = waAsesor();
+  const intro = num
+    ? "También puedes escribirle directo por WhatsApp. 😉"
+    : "Déjanos tus datos por el chat y te contactamos.";
+  await botMsg(`<i data-lucide="user-round" class="lucide"></i> Te conecto con uno de nuestros asesores.\n<i data-lucide="clock" class="lucide"></i> Tiempo estimado de respuesta: <b>5 minutos</b> (L-S, 8am a 6pm).\n\n${intro}`);
+  const botones = [];
+  if(num){
+    botones.push({icon:"message-circle", iconColor:"var(--verde-wa)", label:"Abrir WhatsApp",
+      href: linkWhatsApp(num, "Hola, vengo de la página web y necesito ayuda")});
+  }else{
+    const alt = canalAlternoHtml();
+    if(alt) await botMsg(`<i data-lucide="phone" class="lucide"></i> Por ahora el WhatsApp no está disponible. Puedes contactarnos así:${alt}`);
+  }
+  botones.push({icon:"receipt", label:"Ver mi cotización" + (cotizacion.length ? ` (${cotizacion.length})` : ""), action: verCotizacion});
+  botButtons(botones);
 }
 
 /* ================= ENTRADA LIBRE (bot conversacional) =================
