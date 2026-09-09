@@ -10,7 +10,7 @@ from django.contrib import messages
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
-from .models import (Producto, Cotizacion, ItemCotizacion, Cita,
+from .models import (Producto, Cotizacion, ItemCotizacion,
                      VentaRapida, ImportacionInventario,
                      Motocicleta, ConfiguracionSitio)
 from .importador import importar_excel
@@ -131,14 +131,6 @@ class CotizacionAdmin(admin.ModelAdmin):
     list_filter = ["estado", "origen"]
     list_editable = ["estado"]
     inlines = [ItemInline]
-
-
-@admin.register(Cita)
-class CitaAdmin(admin.ModelAdmin):
-    list_display = ["fecha", "hora", "nombre_cliente", "telefono", "servicio", "moto", "estado"]
-    list_filter = ["estado", "servicio", "fecha"]
-    list_editable = ["estado"]
-    search_fields = ["nombre_cliente", "telefono"]
 
 
 @admin.register(VentaRapida)

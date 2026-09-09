@@ -303,12 +303,21 @@
   .serv-body .ico{font-size:26px}
   .serv-body h3{font-size:20px}
   .serv-body p{font-size:14px;color:#b9bdc5;line-height:1.5;flex:1}
-  .serv-body button{
-    align-self:flex-start;background:transparent;border:1.5px solid var(--rojo);color:#fff;
-    border-radius:6px;padding:9px 18px;font-family:'Inter';font-weight:700;
-    letter-spacing:.8px;font-size:14px;text-transform:uppercase;cursor:pointer;transition:background .15s;
+
+  /* franja informativa del taller: horario, dirección, WhatsApp -- no es un
+     formulario, es publicidad del servicio (ver sección "taller" en el HTML) */
+  .taller-info{margin-top:28px;display:flex;flex-wrap:wrap;gap:16px}
+  .taller-info-item{
+    display:flex;gap:12px;align-items:center;background:var(--grafito);
+    border-radius:10px;padding:14px 20px;flex:1;min-width:220px;
   }
-  .serv-body button:hover{background:var(--rojo)}
+  .taller-info-item .lucide{color:var(--rojo);width:1.4em;height:1.4em;flex-shrink:0}
+  .taller-info-item h4{font-size:14.5px;color:#fff;margin-bottom:2px}
+  .taller-info-item p{font-size:13.5px;color:#b9bdc5;margin:0}
+  a.taller-info-item{text-decoration:none;background:var(--verde-wa);transition:background .15s}
+  a.taller-info-item:hover{background:#1fb355}
+  a.taller-info-item .lucide{color:#fff}
+  a.taller-info-item h4{color:#fff}
 
   /* diferenciales */
   .grid-dif{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px}
@@ -528,20 +537,25 @@
     <div class="grid-serv">
       <div class="serv reveal">
         <div class="serv-img"><img src="https://loremflickr.com/300/160/motorcycle,mechanic?lock=21" loading="lazy" alt="Mantenimiento general" onerror="this.parentElement.style.background='#33353c'"></div>
-        <div class="serv-body"><div class="ico"><i data-lucide="wrench" class="lucide"></i></div><h3>Mantenimiento general</h3><p>Revisión completa de tu moto: motor, transmisión, suspensión y sistema eléctrico.</p><button onclick="abrirCita('Mantenimiento general')">Agendar</button></div>
+        <div class="serv-body"><div class="ico"><i data-lucide="wrench" class="lucide"></i></div><h3>Mantenimiento general</h3><p>Revisión completa de tu moto: motor, transmisión, suspensión y sistema eléctrico.</p></div>
       </div>
       <div class="serv reveal">
         <div class="serv-img"><img src="https://loremflickr.com/300/160/motor,oil,motorcycle?lock=6" loading="lazy" alt="Cambio de aceite" onerror="this.parentElement.style.background='#33353c'"></div>
-        <div class="serv-body"><div class="ico"><i data-lucide="droplet" class="lucide"></i></div><h3>Cambio de aceite y filtro</h3><p>Aceite original Honda HP4 y filtros genuinos. Servicio en menos de 40 minutos.</p><button onclick="abrirCita('Cambio de aceite y filtro')">Agendar</button></div>
+        <div class="serv-body"><div class="ico"><i data-lucide="droplet" class="lucide"></i></div><h3>Cambio de aceite y filtro</h3><p>Aceite original Honda HP4 y filtros genuinos. Servicio en menos de 40 minutos.</p></div>
       </div>
       <div class="serv reveal">
         <div class="serv-img"><img src="https://loremflickr.com/300/160/motorcycle,brake?lock=23" loading="lazy" alt="Revisión de frenos" onerror="this.parentElement.style.background='#33353c'"></div>
-        <div class="serv-body"><div class="ico"><i data-lucide="disc" class="lucide"></i></div><h3>Revisión de frenos</h3><p>Pastillas, discos, líquido de frenos y calibración para tu seguridad en la vía.</p><button onclick="abrirCita('Revisión de frenos')">Agendar</button></div>
+        <div class="serv-body"><div class="ico"><i data-lucide="disc" class="lucide"></i></div><h3>Revisión de frenos</h3><p>Pastillas, discos, líquido de frenos y calibración para tu seguridad en la vía.</p></div>
       </div>
       <div class="serv reveal">
         <div class="serv-img"><img src="https://loremflickr.com/300/160/motorcycle,carburetor?lock=9" loading="lazy" alt="Diagnóstico de inyección" onerror="this.parentElement.style.background='#33353c'"></div>
-        <div class="serv-body"><div class="ico"><i data-lucide="activity" class="lucide"></i></div><h3>Diagnóstico de inyección</h3><p>Escaneo electrónico de la ECU y diagnóstico de fallas en motos con inyección.</p><button onclick="abrirCita('Diagnóstico de inyección')">Agendar</button></div>
+        <div class="serv-body"><div class="ico"><i data-lucide="activity" class="lucide"></i></div><h3>Diagnóstico de inyección</h3><p>Escaneo electrónico de la ECU y diagnóstico de fallas en motos con inyección.</p></div>
       </div>
+    </div>
+    <div class="taller-info reveal">
+      <div class="taller-info-item"><i data-lucide="clock" class="lucide"></i><div><h4>Horario de atención</h4><p>Lunes a sábado, 8:00 am – 6:00 pm</p></div></div>
+      <div class="taller-info-item"><i data-lucide="map-pin" class="lucide"></i><div><h4>Dirección</h4><p>Popayán, Cauca</p></div></div>
+      <a class="taller-info-item" id="tallerWa" href="#" target="_blank" rel="noopener"><i data-lucide="message-circle" class="lucide"></i><div><h4>¿Necesitas el taller?</h4><p>Escríbenos por WhatsApp</p></div></a>
     </div>
   </div>
 </section>

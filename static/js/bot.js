@@ -22,13 +22,6 @@ const INVENTARIO = [
   {id:7, nombre:"Kit cilindro completo", ref:"12100-KRE-D00", modelo:"XR150L", precio:265000, stock:2},
   {id:8, nombre:"Llanta trasera 100/80-17", ref:"42711-KYJ-D01", modelo:"CB160F DLX", precio:158000, stock:5},
 ];
-const SERVICIOS = [
-  {clave:"mantenimiento", nombre:"Mantenimiento general"},
-  {clave:"aceite", nombre:"Cambio de aceite y filtro"},
-  {clave:"frenos", nombre:"Revisión de frenos"},
-  {clave:"inyeccion", nombre:"Diagnóstico de inyección"},
-];
-const HORAS = ["8:00 AM","10:00 AM","2:00 PM","4:00 PM"];
 const fmt = n => "$" + Math.round(n).toLocaleString("es-CO");
 
 /* ================= PLACA DE PRODUCTO (sin foto elegida) =================
@@ -109,13 +102,6 @@ async function apiCrearCotizacion(datos){
     headers:{"Content-Type":"application/json"}, body:JSON.stringify(datos)});
   return await r.json();
 }
-async function apiCrearCita(datos){
-  if(USAR_DEMO) return {ok:true};
-  const r = await fetch(`${API_URL}/api/citas/`, {method:"POST",
-    headers:{"Content-Type":"application/json"}, body:JSON.stringify(datos)});
-  return await r.json();
-}
-
 /* ================= MOTOS (concesionario) + CONFIG (WhatsApp asesor) =================
    El número de WhatsApp NO se quema en el HTML: se trae de /api/config/
    para que Ana lo pueda cambiar desde el admin sin tocar código. */
@@ -169,26 +155,6 @@ async function apiMotos(){
     const r = await fetch(`${API_URL}/api/motos/`);
     return (await r.json()).map(mapMoto);
   }catch(e){ console.error(e); return []; }
-}
-
-function proximaFecha(diaTexto){
-  // Convierte "mañana"/"el jueves"... en fecha AAAA-MM-DD real
-  const hoy = new Date();
-  const dias = {"domingo":0,"lunes":1,"martes":2,"miércoles":3,"jueves":4,"viernes":5,"sábado":6};
-  if(diaTexto.includes("mañana")){ hoy.setDate(hoy.getDate()+1); }
-  else{
-    const nombre = diaTexto.replace("el ","").trim();
-    const objetivo = dias[nombre] ?? hoy.getDay();
-    let delta = (objetivo - hoy.getDay() + 7) % 7; if(delta===0) delta=7;
-    hoy.setDate(hoy.getDate()+delta);
-  }
-  return hoy.toISOString().slice(0,10);
-}
-function hora24(h){
-  const [t, ampm] = h.split(" ");
-  let [hh, mm] = t.split(":").map(Number);
-  if(ampm==="PM" && hh<12) hh+=12;
-  return `${String(hh).padStart(2,"0")}:${mm===0?"00":mm}`;
 }
 
 /* ================= ÍCONOS =================
@@ -309,6 +275,15 @@ async function pintarMotos(){
 }
 pintarMotos();
 
+/* ================= TALLER (informativo, ya no agenda citas) ================= */
+async function pintarTallerWa(){
+  await configListo;
+  const a = document.getElementById("tallerWa");
+  if(a) a.href = linkWhatsApp(CONFIG_SITIO.whatsapp_asesor,
+    "Hola, quiero información sobre el servicio de taller de SuperMotos La 4ta");
+}
+pintarTallerWa();
+
 /* ================= WIDGET ================= */
 const panel = document.getElementById("panel");
 const fabDot = document.getElementById("fabDot");
@@ -316,7 +291,6 @@ const chat = document.getElementById("chat");
 const inp = document.getElementById("inp");
 const statusEl = document.getElementById("status");
 let cotizacion = [];      // items {producto, cantidad:1}
-let citaTmp = {};
 let saludado = false;
 let captura = null;       // cuando el bot espera un dato escrito (nombre/teléfono)
 
@@ -329,12 +303,6 @@ function toggleChat(){
   }
 }
 function abrirChat(){ if(!panel.classList.contains("open")) toggleChat(); }
-function abrirCita(servicioNombre){
-  abrirChat();
-  const s = SERVICIOS.find(x=>x.nombre===servicioNombre) || SERVICIOS[0];
-  const arranca = ()=>{ clearButtons(); userMsg("Quiero agendar: "+s.nombre); setTimeout(()=>citaDia(s), 400); };
-  if(!saludado){ setTimeout(arranca, 1600); } else { arranca(); }
-}
 function cotizarDesdePagina(id){
   const p = CATALOGO.find(x=>x.id===id);
   if(!p) return;
@@ -421,7 +389,6 @@ async function saludo(){
 async function menu(){
   botButtons([
     {icon:"search", label:"Buscar un repuesto", action: iniciarBusquedaRepuesto},
-    {icon:"wrench", label:"Agendar cita de taller", action: flujoCita},
     {icon:"receipt", label:"Ver mi cotización" + (cotizacion.length ? ` (${cotizacion.length})` : ""), action: verCotizacion},
     {icon:"user-round", label:"Hablar con un asesor", action: asesor},
   ]);
@@ -555,7 +522,6 @@ async function confirmarPedidoConDatos(txt){
     botButtons([
       {icon:"message-circle", iconColor:"var(--verde-wa)", label:"Enviar resumen por WhatsApp",
        href: linkWhatsApp(CONFIG_SITIO.whatsapp_asesor, mensajeResumenCotizacion(numero, d, itemsCotizados))},
-      {icon:"wrench", label:"Agendar cita de taller", action: flujoCita},
       {icon:"user-round", label:"Hablar con un asesor", action: asesor},
     ]);
   }catch(e){
@@ -569,60 +535,11 @@ async function vaciar(){
   await botMsg("<i data-lucide=\"trash-2\" class=\"lucide\"></i> Listo, tu cotización quedó vacía.");
   await menu();
 }
-const ICONO_SERVICIO = {mantenimiento:"wrench", aceite:"droplet", frenos:"disc", inyeccion:"activity"};
-async function flujoCita(){
-  await botMsg("<i data-lucide=\"wrench\" class=\"lucide\"></i> ¡Con gusto! ¿Qué servicio necesita tu moto?");
-  botButtons(SERVICIOS.map(s=>({icon:ICONO_SERVICIO[s.clave], label:s.nombre, action:()=>citaDia(s)}))
-    .concat([{icon:"arrow-left", label:"Volver al menú", action: menu}]));
-}
-async function citaDia(servicio){
-  citaTmp = {servicio};
-  await botMsg(`Perfecto: <b>${servicio.nombre}</b>.\n¿Qué día te queda bien? <i data-lucide="calendar" class="lucide"></i>`);
-  botButtons([
-    {label:"Mañana", action:()=>citaHora("mañana")},
-    {label:"Jueves", action:()=>citaHora("el jueves")},
-    {label:"Viernes", action:()=>citaHora("el viernes")},
-    {label:"Sábado", action:()=>citaHora("el sábado")},
-  ]);
-}
-async function citaHora(dia){
-  citaTmp.dia = dia;
-  await botMsg(`Estos son los horarios disponibles ${dia}: <i data-lucide="clock" class="lucide"></i>`);
-  botButtons(HORAS.map(h=>({label:h, action:()=>citaDatos(h)})));
-}
-async function citaDatos(h){
-  citaTmp.hora = h;
-  await botMsg("¡Casi listo! Escríbeme tu <b>nombre, número de WhatsApp y el modelo de tu moto</b>\n(ej: <i>Ana Ruiz 3017654321 CB160F</i>) <i data-lucide=\"message-circle\" class=\"lucide\"></i> <i data-lucide=\"bike\" class=\"lucide\"></i>");
-  captura = citaConfirmarConDatos;
-}
-async function citaConfirmarConDatos(txt){
-  const d = extraerDatos(txt);
-  if(!d.telefono){
-    await botMsg("No logré identificar el número 😅. Escríbeme tu nombre y un número de contacto, por favor.");
-    captura = citaConfirmarConDatos;
-    return;
-  }
-  // detectar modelo de moto en el texto
-  const moto = (txt.toUpperCase().match(/(CB\s?\d+\w*|XR\s?\d+\w*|XRE\s?\d+|CBF\s?\d+|NAVI|DIO|XBLADE|INVICTA|DREAM\w*)/) || [""])[0];
-  const nombre = d.nombre.replace(new RegExp(moto,"i"),"").trim() || "Cliente web";
-  try{
-    await apiCrearCita({
-      nombre_cliente: nombre, telefono: d.telefono,
-      servicio: citaTmp.servicio.clave, moto: moto,
-      fecha: proximaFecha(citaTmp.dia), hora: hora24(citaTmp.hora),
-    });
-    await botMsg(`<i data-lucide="check-circle" class="lucide" style="color:var(--verde)"></i> <b>¡Cita agendada!</b><span class="divider"></span><i data-lucide="user-round" class="lucide"></i> ${esc(nombre)}\n<i data-lucide="wrench" class="lucide"></i> ${citaTmp.servicio.nombre}\n<i data-lucide="calendar" class="lucide"></i> ${citaTmp.dia} — <i data-lucide="clock" class="lucide"></i> ${citaTmp.hora}\n${moto ? `<i data-lucide="bike" class="lucide"></i> Moto: `+esc(moto)+"\n" : ""}<i data-lucide="map-pin" class="lucide"></i> SuperMotos La 4ta — Popayán<span class="divider"></span>Te contactaremos al <b>${esc(d.telefono)}</b> para confirmar. <i data-lucide="bell" class="lucide"></i>`, 1100);
-  }catch(e){
-    await botMsg("Tuvimos un problema agendando 😔. Intenta de nuevo o llámanos directamente.");
-  }
-  await menu();
-}
 async function asesor(){
   await configListo;
   await botMsg("<i data-lucide=\"user-round\" class=\"lucide\"></i> Te conecto con uno de nuestros asesores.\n<i data-lucide=\"clock\" class=\"lucide\"></i> Tiempo estimado de respuesta: <b>5 minutos</b> (L-S, 8am a 6pm).\n\nTambién puedes escribirle directo por WhatsApp. 😉");
   botButtons([
     {icon:"message-circle", iconColor:"var(--verde-wa)", label:"Abrir WhatsApp", href: linkWhatsApp(CONFIG_SITIO.whatsapp_asesor, "Hola, vengo de la página web y necesito ayuda")},
-    {icon:"wrench", label:"Agendar cita de taller", action: flujoCita},
     {icon:"receipt", label:"Ver mi cotización" + (cotizacion.length ? ` (${cotizacion.length})` : ""), action: verCotizacion},
   ]);
 }
@@ -631,14 +548,16 @@ async function asesor(){
    El cliente escribe libre ("frenos para mi cb110", "cuanto vale el kit
    de arrastre cb190") y por defecto se busca en el backend, que ya
    interpreta pieza + modelo (tienda/busqueda.py). Antes de buscar se
-   detectan unas pocas intenciones explícitas (saludo, cita, cotización,
-   asesor) para no mandar esas frases como si fueran nombre de repuesto. */
+   detectan unas pocas intenciones explícitas (saludo, cotización, asesor)
+   para no mandar esas frases como si fueran nombre de repuesto. El bot NO
+   agenda nada (ver sección "Taller" de la web, es informativa): si el
+   cliente pregunta por cita/taller se lo pasa directo a un asesor.*/
 async function procesar(txt){
   if(captura){ const fn = captura; captura = null; return fn(txt); }
   const t = txt.toLowerCase().trim();
   if(/^(hola|buenas|buenos dias|buenas tardes|buenas noches|menu|menú|inicio)\b/.test(t)) return saludo();
   if(/\b(cotizaci[oó]n|cotizar|carrito|mi pedido)\b/.test(t)) return verCotizacion();
-  if(/\b(cita|agendar|agenda)\b/.test(t)) return flujoCita();
+  if(/\b(cita|agendar|agenda|taller)\b/.test(t)) return asesor();
   if(/\b(asesor|humano|persona real|hablar con alguien)\b/.test(t)) return asesor();
   if(/^gracias/.test(t)){
     await botMsg("¡Con mucho gusto! 🙌 Sigo aquí si necesitas algo más.");
