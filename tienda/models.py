@@ -1,4 +1,5 @@
 import re
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F
 
@@ -162,16 +163,35 @@ class Producto(models.Model):
 
 
 class Cotizacion(models.Model):
+    # nueva -> tomada -> vendida
+    #               \-> perdida (motivo obligatorio, ver clean())
+    # Dos vendedores comparten un solo WhatsApp: "tomada" (+ asesor/tomada_en)
+    # es lo que evita que los dos trabajen la misma cotización sin saberlo.
     ESTADOS = [
         ("nueva", "Nueva"),
-        ("contactado", "Cliente contactado"),
+        ("tomada", "Tomada"),
         ("vendida", "Vendida"),
-        ("vencida", "Vencida"),
+        ("perdida", "Perdida"),
+    ]
+    MOTIVOS_PERDIDA = [
+        ("sin_stock", "Sin stock real"),
+        ("precio", "Precio"),
+        ("no_contesto", "No contestó"),
+        ("otro_lado", "Compró en otro lado"),
+        ("otro", "Otro"),
     ]
     nombre_cliente = models.CharField("Nombre del cliente", max_length=120, blank=True)
     telefono = models.CharField("Teléfono / WhatsApp", max_length=30, blank=True)
     estado = models.CharField(max_length=15, choices=ESTADOS, default="nueva")
-    origen = models.CharField(max_length=20, default="web")  # web | whatsapp
+    origen = models.CharField(max_length=20, default="web")  # web | web-agotado | moto
+    # Texto libre y no FK a User: son dos vendedores de mostrador compartiendo
+    # un WhatsApp, sin cuentas propias en el panel. Si el equipo crece y hace
+    # falta forzar login por vendedor, esto se migra a FK sin perder datos.
+    asesor = models.CharField("Asesor que la tomó", max_length=80, blank=True)
+    tomada_en = models.DateTimeField("Tomada el", null=True, blank=True)
+    motivo_perdida = models.CharField("Motivo de pérdida", max_length=20,
+        choices=MOTIVOS_PERDIDA, blank=True)
+    notas_asesor = models.TextField("Notas del asesor", blank=True)
     creada = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -181,6 +201,27 @@ class Cotizacion(models.Model):
 
     def __str__(self):
         return f"Cotización #{self.id:04d} ({self.get_estado_display()})"
+
+    def clean(self):
+        if self.estado == "perdida":
+            if not self.motivo_perdida:
+                raise ValidationError(
+                    {"motivo_perdida": "Obligatorio al marcar la cotización como perdida."})
+        else:
+            # motivo_perdida solo significa algo si estado == "perdida". Si un
+            # vendedor saca la cotización de ese estado (los dos comparten el
+            # WhatsApp y se corrigen entre sí), se limpia el motivo: una
+            # cotización vendida con motivo "no contestó" contaminaría el dato
+            # de pérdidas, que es el más valioso a mediano plazo. Con esto
+            # marcar_vendida / marcar_tomada lo limpian sin código extra.
+            self.motivo_perdida = ""
+
+    def save(self, *args, **kwargs):
+        # full_clean() (no solo la validación del form del admin) para que la
+        # regla de motivo_perdida obligatorio se cumpla también desde una
+        # acción masiva o desde el shell, no únicamente al editar a mano.
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     @property
     def total(self):

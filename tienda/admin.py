@@ -2,11 +2,13 @@ from urllib.parse import quote_plus
 
 from django.contrib import admin
 from django import forms
-from django.db.models import Q
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+from django.db.models import Case, Count, F, IntegerField, Q, Sum, Value, When
 from django.shortcuts import redirect
 from django.urls import path
 from django.template.response import TemplateResponse
 from django.contrib import messages
+from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
@@ -125,12 +127,113 @@ class ItemInline(admin.TabularInline):
     extra = 0
 
 
+class TomarForm(forms.Form):
+    asesor = forms.CharField(label="¿Quién la toma?", max_length=80)
+
+
+class PerderForm(forms.Form):
+    motivo_perdida = forms.ChoiceField(label="Motivo de la pérdida", choices=Cotizacion.MOTIVOS_PERDIDA)
+
+
+# nueva primero (lo que falta por tomar), después tomada (en curso), y al
+# final vendida/perdida (ya resueltas) -- explícito en vez de dejarlo al
+# orden alfabético de las claves, que cambiaría si algún día se agrega un
+# estado nuevo.
+PRIORIDAD_ESTADO = {"nueva": 0, "tomada": 1, "vendida": 2, "perdida": 3}
+COLOR_ESTADO = {"nueva": "#c0392b", "tomada": "#b8860b", "vendida": "#0a7d43", "perdida": "#6b7078"}
+
+
 @admin.register(Cotizacion)
 class CotizacionAdmin(admin.ModelAdmin):
-    list_display = ["id", "nombre_cliente", "telefono", "origen", "estado", "total", "creada"]
-    list_filter = ["estado", "origen"]
-    list_editable = ["estado"]
+    list_display = ["id", "estado_coloreado", "nombre_cliente", "telefono", "origen",
+                     "asesor", "monto_total", "num_items", "creada"]
+    list_filter = ["estado", "asesor", "origen"]
+    search_fields = ["nombre_cliente", "telefono"]
     inlines = [ItemInline]
+    actions = ["marcar_tomada", "marcar_vendida", "marcar_perdida"]
+
+    def get_queryset(self, request):
+        # Una sola consulta con todo lo que necesita la lista -- nada de
+        # abrir Cotizacion.total (que hace una query por fila) desde acá.
+        prioridad = Case(
+            *[When(estado=k, then=Value(v)) for k, v in PRIORIDAD_ESTADO.items()],
+            default=Value(99), output_field=IntegerField(),
+        )
+        return super().get_queryset(request).annotate(
+            prioridad_estado=prioridad,
+            monto_total=Sum(F("items__cantidad") * F("items__precio_unitario")),
+            num_items=Count("items"),
+        ).order_by("prioridad_estado", "-creada")
+
+    @admin.display(description="Estado", ordering="prioridad_estado")
+    def estado_coloreado(self, obj):
+        color = COLOR_ESTADO.get(obj.estado, "#333")
+        return format_html('<b style="color:{}">{}</b>', color, obj.get_estado_display())
+
+    @admin.display(description="Total", ordering="monto_total")
+    def monto_total(self, obj):
+        return obj.monto_total or 0
+
+    @admin.display(description="Ítems", ordering="num_items")
+    def num_items(self, obj):
+        return obj.num_items
+
+    @admin.action(description="Marcar como tomada")
+    def marcar_tomada(self, request, queryset):
+        return self._accion_con_form(
+            request, queryset, TomarForm, "admin/cotizacion_marcar.html",
+            titulo="Marcar como tomada",
+            aplicar=lambda datos: {"estado": "tomada", "asesor": datos["asesor"],
+                                    "tomada_en": timezone.now()},
+        )
+
+    @admin.action(description="Marcar como vendida")
+    def marcar_vendida(self, request, queryset):
+        n = 0
+        for c in queryset:
+            c.estado = "vendida"
+            c.save()
+            n += 1
+        self.message_user(request, f"{n} cotización(es) marcadas como vendidas.")
+
+    @admin.action(description="Marcar como perdida (pide motivo)")
+    def marcar_perdida(self, request, queryset):
+        return self._accion_con_form(
+            request, queryset, PerderForm, "admin/cotizacion_marcar.html",
+            titulo="Marcar como perdida",
+            aplicar=lambda datos: {"estado": "perdida", "motivo_perdida": datos["motivo_perdida"]},
+        )
+
+    def _accion_con_form(self, request, queryset, form_class, template, titulo, aplicar):
+        """Patrón de doble paso (igual al 'eliminar seleccionados' de Django):
+        1er POST -> muestra el formulario pidiendo el dato que falta.
+        2do POST (con 'aplicar' en el body) -> lo valida y recién ahí actualiza.
+        Así motivo_perdida (o el asesor) nunca queda vacío por una acción
+        masiva -- el modelo también lo exige en save(), esto es además una
+        mejor experiencia que dejar que falle."""
+        if "aplicar" in request.POST:
+            form = form_class(request.POST)
+            if form.is_valid():
+                cambios = aplicar(form.cleaned_data)
+                n = 0
+                for c in queryset:
+                    for campo, valor in cambios.items():
+                        setattr(c, campo, valor)
+                    c.save()
+                    n += 1
+                self.message_user(request, f"{n} cotización(es) actualizadas.")
+                return None
+        else:
+            form = form_class()
+        return TemplateResponse(request, template, {
+            **self.admin_site.each_context(request),
+            "cotizaciones": queryset,
+            "form": form,
+            "titulo": titulo,
+            "action_checkbox_name": ACTION_CHECKBOX_NAME,
+            "action_name": request.POST.get("action", ""),
+            "opts": self.model._meta,
+        })
 
 
 @admin.register(VentaRapida)
