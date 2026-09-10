@@ -368,6 +368,9 @@ const statusEl = document.getElementById("status");
 let cotizacion = [];      // items {producto, cantidad:1}
 let saludado = false;
 let captura = null;       // cuando el bot espera un dato escrito (nombre/teléfono)
+let ultimosResultados = [];  // los productos del último buscar(): los botones
+                             // "Agregar"/"Avísenme" de cada tarjeta del chat
+                             // los buscan acá por id (ver agregarDesdeChat)
 
 function toggleChat(){
   panel.classList.toggle("open");
@@ -489,19 +492,49 @@ async function buscar(q){
     : (fallback
         ? `<i data-lucide="triangle-alert" class="lucide" style="color:var(--rojo)"></i> No encontré exactamente "<b>${esc(q)}</b>"; esto es lo más parecido, pero está agotado:`
         : `<i data-lucide="triangle-alert" class="lucide" style="color:var(--rojo)"></i> Encontré <b>${res.length}</b> resultado(s), pero por ahora están agotados:`);
-  res.slice(0,4).forEach(p=>{
+  // Cada resultado mostrado lleva su propio botón, pegado a la tarjeta: así se
+  // agrega con un toque el producto que el cliente está mirando, sin tener que
+  // reescribir el nombre. Antes solo los 3 primeros tenían botón (abajo, con
+  // el nombre cortado a 3 palabras -> etiquetas idénticas cuando compartían
+  // prefijo). El agotado lleva "Avísenme", no "Agregar".
+  ultimosResultados = res.slice(0, 4);
+  ultimosResultados.forEach(p=>{
+    const cta = p.stock > 0
+      ? `<button class="prod-cta" data-add="${p.id}" onclick="agregarDesdeChat(${p.id})"><i data-lucide="plus" class="lucide"></i> Agregar</button>`
+      : `<button class="prod-cta prod-cta--avisar" onclick="avisarmeDesdeChat(${p.id})"><i data-lucide="bell" class="lucide"></i> Avísenme</button>`;
     html += `<span class="divider"></span>` + chatProdHtml(p,
       `<b>${esc(p.nombre)}</b><br>Ref: ${esc(p.ref)}<br>Compatible: ${esc(p.modelo)}<br>Precio: <span class="price">${fmt(p.precio)}</span><br>` +
-      (p.stock > 0 ? `Stock: ${p.stock} unidades <i data-lucide="check-circle" class="lucide" style="color:var(--verde)"></i>` : `<span style="color:var(--rojo);font-weight:600">Agotado por ahora <i data-lucide="circle-x" class="lucide"></i></span>`));
+      (p.stock > 0 ? `Stock: ${p.stock} unidades <i data-lucide="check-circle" class="lucide" style="color:var(--verde)"></i>` : `<span style="color:var(--rojo);font-weight:600">Agotado por ahora <i data-lucide="circle-x" class="lucide"></i></span>`) +
+      `<br>${cta}`);
   });
   await botMsg(html, 1100);
-  const btns = res.slice(0,3).map(p => ({
-    icon: p.stock > 0 ? "plus" : "bell",
-    label: (p.stock > 0 ? "Agregar " : "Avísenme ") + p.nombre.split(" ").slice(0,3).join(" "),
-    action: p.stock > 0 ? ()=>agregar(p) : ()=>pedirContactoAgotado(p)
-  }));
-  btns.push({icon:"arrow-left", label:"Accesos rápidos", action: menu});
-  botButtons(btns);
+  botButtons([{icon:"arrow-left", label:"Accesos rápidos", action: menu}]);
+}
+
+/* Los botones "Agregar"/"Avísenme" van DENTRO del mensaje de resultados, así
+   que no pueden usar el closure de botButtons(): se cablean con onclick
+   inline y buscan el producto por id en ultimosResultados -- mismo patrón que
+   cotizarDesdePagina(). Quedan en el historial del chat (clearButtons() no los
+   toca), así "agregar el 3º" sigue disponible después de scrollear. */
+function agregarDesdeChat(id){
+  const p = ultimosResultados.find(x => x.id === id);
+  if(!p) return;
+  const b = document.querySelector(`button.prod-cta[data-add="${id}"]`);
+  if(b && b.disabled) return;                 // ya se agregó: no duplicar
+  if(b){
+    b.disabled = true;
+    b.classList.add("prod-cta--hecho");
+    b.innerHTML = `<i data-lucide="check" class="lucide"></i> Agregado`;
+    lucide.createIcons();
+  }
+  agregar(p);
+}
+function avisarmeDesdeChat(id){
+  const p = ultimosResultados.find(x => x.id === id);
+  if(!p) return;
+  clearButtons();
+  userMsg("Avísenme cuando llegue: " + p.nombre);
+  setTimeout(()=>pedirContactoAgotado(p), 300);
 }
 /* Un producto agotado NO se agrega a la cotización (agregar() es para lo que
    sí se va a comprar ya); en vez de eso se captura el contacto para avisar
