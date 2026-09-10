@@ -309,9 +309,12 @@ class ImportacionAdmin(admin.ModelAdmin):
                 reg.errores = "\n".join(r.get("detalles", [])) or r.get("error", "")
                 reg.save()
                 if r.get("ok"):
-                    messages.success(request,
-                        f"Inventario actualizado: {r['creados']} productos nuevos, "
-                        f"{r['actualizados']} actualizados, {r['omitidos']} filas omitidas.")
+                    resumen = (f"Inventario actualizado: {r['creados']} productos nuevos, "
+                               f"{r['actualizados']} actualizados, {r['omitidos']} filas omitidas.")
+                    if r.get("no_producto"):
+                        resumen += (f" {r['no_producto']} fila(s) no son repuesto "
+                                    f"(IVA, fletes, servicios): quedaron inactivas.")
+                    messages.success(request, resumen)
                 else:
                     messages.error(request, r.get("error", "Error desconocido."))
                 return redirect("..")

@@ -17,6 +17,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .admin import CotizacionAdmin, NombreLegibleFilter, PerderForm, TomarForm
+from .importador import importar_excel
 from .models import (Cotizacion, ConfiguracionSitio, ImportacionInventario,
                      ItemCotizacion, Producto, nombre_es_ilegible,
                      parsear_descripcion)
@@ -529,3 +530,79 @@ class MigracionReparseoTests(TestCase):
 
         # texto_busqueda repoblado en TODAS las filas (ninguna quedo en "viejo")
         self.assertFalse(Producto.objects.filter(texto_busqueda="viejo").exists())
+
+
+class ImportadorNoProductoTests(TestCase):
+    """El export de Celeste trae filas que no son repuesto (IVA, fletes,
+    servicios de taller). Se importan como inactivas -- nunca se descartan en
+    silencio -- y no aparecen en el catálogo."""
+
+    NO_PRODUCTO = [
+        "IVA",
+        "FLETE",
+        "MANO DE OBRA",
+        "SINCRONIZACION MOTO CB125F",
+        "lubricacion guayas",
+        "REVISION DE LO 1000K",
+        "SERVICIO DE TORNO",
+    ]
+    # piezas REALES que un filtro por palabra clave ("ajuste", "sincronizacion",
+    # "seguro") se llevaría por delante -- deben entrar activas.
+    FALSOS_POSITIVOS = [
+        "083PA-KWP-K00 KIT SINCRONIZACION (FILTRO + BUJIA)",
+        "40546-K43-900 PLACA AJUSTE DE CADENA (CB 160)",
+    ]
+
+    def _xlsx(self, filas):
+        from openpyxl import Workbook
+        wb = Workbook(); ws = wb.active
+        ws.append(["Código", "Categoría", "Descripcion", "Marca", "Público", "Dispo"])
+        for cod, cat, desc in filas:
+            ws.append([cod, cat, desc, "Honda", 10000, 1])
+        buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+        return buf
+
+    def test_no_producto_entra_inactivo_y_los_reales_activos(self):
+        filas = [(f"N{i}", "Iva" if d == "IVA" else "Repuestos original", d)
+                 for i, d in enumerate(self.NO_PRODUCTO)]
+        filas += [(f"R{i}", "Repuestos original", d)
+                  for i, d in enumerate(self.FALSOS_POSITIVOS)]
+        filas.append(("OK1", "Repuestos original", "17211-KRH-780 FILTRO DE AIRE (CB110)"))
+
+        r = importar_excel(self._xlsx(filas))
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["no_producto"], 7)
+        self.assertTrue(any("no son repuesto" in d for d in r["detalles"]),
+                        "el resumen debe dejar rastro del conteo")
+
+        for i, d in enumerate(self.NO_PRODUCTO):
+            p = Producto.objects.get(codigo_celeste=f"N{i}")
+            self.assertFalse(p.activo, f"{d!r} debería quedar inactivo")
+
+        for i, d in enumerate(self.FALSOS_POSITIVOS):
+            p = Producto.objects.get(codigo_celeste=f"R{i}")
+            self.assertTrue(p.activo, f"{d!r} es una pieza real, debe quedar activa")
+
+        self.assertTrue(Producto.objects.get(codigo_celeste="OK1").activo)
+
+    def test_reimport_no_reactiva_lo_que_ana_desactivo_a_mano(self):
+        filas = [("OK1", "Repuestos original", "17211-KRH-780 FILTRO DE AIRE (CB110)")]
+        importar_excel(self._xlsx(filas))
+        # Ana lo oculta del catálogo desde el admin
+        Producto.objects.filter(codigo_celeste="OK1").update(activo=False)
+
+        # el mismo Excel se vuelve a subir
+        r = importar_excel(self._xlsx(filas))
+        self.assertEqual(r["actualizados"], 1)
+        self.assertFalse(Producto.objects.get(codigo_celeste="OK1").activo,
+                         "el import no debe pisar la decisión manual de Ana")
+
+    def test_no_producto_ya_desactivado_sigue_desactivado(self):
+        filas = [("N0", "Iva", "IVA")]
+        importar_excel(self._xlsx(filas))
+        p = Producto.objects.get(codigo_celeste="N0")
+        self.assertFalse(p.activo)
+        # segundo import: sigue inactivo, sin drama
+        r = importar_excel(self._xlsx(filas))
+        self.assertEqual(r["no_producto"], 1)
+        self.assertFalse(Producto.objects.get(codigo_celeste="N0").activo)
