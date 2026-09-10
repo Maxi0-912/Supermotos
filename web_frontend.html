@@ -226,10 +226,23 @@
   .foto-tile .placa-nombre{font-size:8px;line-height:1.1;-webkit-line-clamp:4;color:#565a62}
 
   .card-body{padding:15px 16px 17px;display:flex;flex-direction:column;gap:4px;flex:1}
-  .card-body h3{font-size:18.5px;font-weight:700;line-height:1.2}
+  /* Nombre a 2 líneas fijas: los nombres de Celeste van de 3 a 12+ palabras
+     y sin tope estiraban la fila entera y descolgaban el botón. El nombre
+     completo sigue accesible: title al pasar el mouse, la placa gris de
+     arriba, y el chat al pulsar COTIZAR. min-height reserva las 2 líneas
+     también para los nombres cortos, así "Ref:" arranca a la misma altura
+     en toda la fila. */
+  .card-body h3{
+    font-size:18.5px;font-weight:700;line-height:1.2;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+    min-height:calc(1.2em * 2);
+  }
   .card-body .ref{font-size:12.5px;color:var(--gris)}
+  /* margin-top:auto empuja precio + stock + botón al fondo de la tarjeta.
+     Como las tarjetas de una fila ya miden igual (grid), COTIZAR queda a la
+     misma altura en todas, sin importar el largo del nombre. */
   .card-body .precio{
-    font-family:'Inter';font-weight:800;font-size:25px;color:var(--rojo);margin-top:6px;
+    font-family:'Inter';font-weight:800;font-size:25px;color:var(--rojo);margin-top:auto;padding-top:6px;
   }
   .card-body .stock{font-size:12.5px;color:var(--verde);font-weight:600}
   .card-body button{
