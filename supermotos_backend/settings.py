@@ -164,7 +164,12 @@ STORAGES = {
 # --- Configuración del proyecto SuperMotos ---
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# El disco del contenedor de Railway es efímero: lo que Ana suba (fotos de
+# producto/moto) se perdería en el siguiente deploy. En producción se monta un
+# volumen persistente y se apunta MEDIA_ROOT a él con esta variable
+# (ej. MEDIA_ROOT=/data/media). En local queda BASE_DIR/media como siempre.
+# Las imágenes de categoría del catálogo NO viven acá: van en static/ (git).
+MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', BASE_DIR / 'media'))
 
 # Producción (Railway u otro host): variables de entorno. Se resuelve ANTES
 # de CORS/ALLOWED_HOSTS para que ambos queden calculados con el DEBUG final.

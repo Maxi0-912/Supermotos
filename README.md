@@ -97,6 +97,17 @@ en su lugar (nunca un enlace a un número inventado).
    agregar el plugin de Postgres), `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `CSRF_ORIGIN`
 3. `python manage.py createsuperuser` en la consola de Railway
 
+### Fotos subidas desde el admin → volumen persistente (OBLIGATORIO)
+El disco del contenedor es **efímero**: sin volumen, toda foto que Ana suba
+desde el admin se pierde en el siguiente deploy. Configurar en Railway:
+1. En el servicio → **Volumes** → montar un volumen (ej. mount path `/data`).
+2. Variable de entorno: `MEDIA_ROOT=/data/media`.
+
+Con eso, `/media/...` se sirve desde el volumen (ver `supermotos_backend/urls.py`;
+ya no depende de `DEBUG`). Las **imágenes de categoría** del catálogo NO usan
+esto: van en `static/img/` (en git, las sirve WhiteNoise). El volumen es solo
+para las fotos por-producto/moto que suba la dueña.
+
 ### ⚠️ Las migraciones se corren A MANO (por ahora)
 `railway.json` define `preDeployCommand: python manage.py migrate`, pero **hoy
 Railway no lo está aplicando** (se descubrió al desplegar: hubo que correr las

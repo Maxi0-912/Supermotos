@@ -606,3 +606,23 @@ class ImportadorNoProductoTests(TestCase):
         r = importar_excel(self._xlsx(filas))
         self.assertEqual(r["no_producto"], 1)
         self.assertFalse(Producto.objects.get(codigo_celeste="N0").activo)
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class MediaEnProduccionTests(TestCase):
+    """/media/ debe servirse aunque DEBUG=False (fotos que sube la dueña).
+    Antes solo se servía con DEBUG=True y en producción no cargaba."""
+
+    def test_sirve_un_archivo_de_media(self):
+        d = Path(settings.MEDIA_ROOT) / "productos"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "x.txt").write_bytes(b"FOTO")
+        with override_settings(DEBUG=False):
+            resp = self.client.get("/media/productos/x.txt")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(b"".join(resp.streaming_content), b"FOTO")
+
+    def test_archivo_inexistente_da_404_no_500(self):
+        with override_settings(DEBUG=False):
+            resp = self.client.get("/media/productos/no-existe.png")
+        self.assertEqual(resp.status_code, 404)
