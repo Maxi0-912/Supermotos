@@ -4,11 +4,35 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SuperMotos La 4ta  </title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+  /* IBM Plex, autoalojado en /static/fonts/ (sin CDN: una dependencia externa
+     menos y un punto de falla menos). Sans para todo; Mono para los códigos
+     de referencia -- el cero de Plex Mono lleva punto interno, así
+     17211-KRH-780 no se confunde con letras. */
+  @font-face{font-family:'IBM Plex Sans';src:url('/static/fonts/ibm-plex-sans-latin-400-normal.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+  @font-face{font-family:'IBM Plex Sans';src:url('/static/fonts/ibm-plex-sans-latin-500-normal.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap}
+  @font-face{font-family:'IBM Plex Sans';src:url('/static/fonts/ibm-plex-sans-latin-600-normal.woff2') format('woff2');font-weight:600;font-style:normal;font-display:swap}
+  @font-face{font-family:'IBM Plex Sans';src:url('/static/fonts/ibm-plex-sans-latin-700-normal.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap}
+  @font-face{font-family:'IBM Plex Mono';src:url('/static/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+  @font-face{font-family:'IBM Plex Mono';src:url('/static/fonts/ibm-plex-mono-latin-500-normal.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap}
+  @font-face{font-family:'IBM Plex Mono';src:url('/static/fonts/ibm-plex-mono-latin-600-normal.woff2') format('woff2');font-weight:600;font-style:normal;font-display:swap}
   :root{
+    /* tipografía */
+    --font-sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    /* escala (raíz 16px) — h1 .. texto chico */
+    --fs-display:clamp(2.5rem,6vw,4rem);
+    --fs-h2:clamp(1.625rem,3.5vw,2.25rem);
+    --fs-h3-moto:1.375rem;
+    --fs-h3-card:1.0625rem;
+    --fs-price-card:1.5rem;
+    --fs-price-moto:2rem;
+    --fs-body:1rem;
+    --fs-body-sm:.9375rem;
+    --fs-label:.8125rem;
+    --fs-ref:.8125rem;
+    --fs-micro:.6875rem;
+    --fs-btn:.875rem;
     --rojo:#E30613;
     --rojo-osc:#B00510;
     --rojo-glow:rgba(227,6,19,.35);
@@ -31,8 +55,8 @@
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{scroll-behavior:smooth}
-  body{font-family:'Inter',-apple-system,sans-serif;color:var(--negro);background:var(--blanco)}
-  h1,h2,h3,.display{font-family:'Inter',sans-serif;text-transform:uppercase;letter-spacing:.5px}
+  body{font-family:var(--font-sans);color:var(--negro);background:var(--blanco);font-size:var(--fs-body);line-height:1.55}
+  h1,h2,h3,.display{font-family:var(--font-sans);text-transform:uppercase;letter-spacing:normal;text-wrap:balance}
   img{max-width:100%}
   .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
   button:focus-visible, a:focus-visible, input:focus-visible{outline:2px solid var(--rojo);outline-offset:2px}
@@ -57,7 +81,7 @@
     color:#fff;display:flex;align-items:center;justify-content:space-between;
     padding:14px 20px;box-shadow:0 2px 16px rgba(0,0,0,.28);border-bottom:1px solid rgba(255,255,255,.06);
   }
-  .logo{display:flex;align-items:center;gap:10px;font-family:'Inter';font-weight:800;font-size:21px;text-transform:uppercase}
+  .logo{display:flex;align-items:center;gap:10px;font-family:var(--font-sans);font-weight:700;font-size:21px;text-transform:uppercase}
   .logo-mark{
     background:linear-gradient(145deg,var(--rojo),var(--rojo-osc));color:#fff;width:34px;height:34px;border-radius:8px;
     display:flex;align-items:center;justify-content:center;font-size:20px;
@@ -68,7 +92,7 @@
   .nav-links a:hover{color:#fff}
   .nav-cta{
     background:var(--rojo);color:#fff!important;padding:9px 16px;border-radius:6px;
-    font-family:'Inter';font-weight:700;letter-spacing:.5px;text-transform:uppercase;font-size:13.5px;
+    font-family:var(--font-sans);font-weight:700;letter-spacing:.5px;text-transform:uppercase;font-size:13.5px;
   }
   .nav-cta:hover{background:var(--rojo-osc)!important}
   .nav-burger{display:none;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1;padding:4px}
@@ -107,13 +131,13 @@
   }
   .badge-live .dot-live{width:8px;height:8px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 0 rgba(61,220,132,.6);animation:pulso 1.8s infinite}
   @keyframes pulso{0%{box-shadow:0 0 0 0 rgba(61,220,132,.55)}70%{box-shadow:0 0 0 9px rgba(61,220,132,0)}100%{box-shadow:0 0 0 0 rgba(61,220,132,0)}}
-  .hero h1{font-size:clamp(38px,6vw,64px);font-weight:800;line-height:.98}
+  .hero h1{font-size:var(--fs-display);font-weight:700;line-height:1.02;letter-spacing:-.015em}
   .hero h1 em{color:var(--rojo);font-style:normal;text-shadow:0 0 26px var(--rojo-glow)}
   .hero p{margin-top:16px;font-size:17px;color:#c9ccd3;max-width:460px;line-height:1.6}
   .hero-ctas{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
   .btn{
     display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer;
-    font-family:'Inter';font-weight:700;font-size:17px;text-transform:uppercase;
+    font-family:var(--font-sans);font-weight:700;font-size:17px;text-transform:uppercase;
     letter-spacing:.8px;padding:14px 28px;border-radius:7px;text-decoration:none;
     transition:transform .12s, box-shadow .12s, background .15s;
   }
@@ -130,7 +154,7 @@
   }
   .stat:hover{transform:translateX(4px)}
   .stat .stat-ico{font-size:24px}
-  .stat b{font-family:'Inter';font-size:26px;display:block;line-height:1}
+  .stat b{font-family:var(--font-sans);font-size:26px;display:block;line-height:1}
   .stat span{font-size:13.5px;opacity:.85}
   @media(max-width:760px){
     .hero-inner{grid-template-columns:1fr;padding:52px 20px 60px}
@@ -140,7 +164,7 @@
   /* franja ticker */
   .ticker{
     background:linear-gradient(90deg,var(--rojo-osc),var(--rojo));color:#fff;overflow:hidden;white-space:nowrap;
-    font-family:'Inter';font-weight:700;font-size:15px;letter-spacing:1.2px;
+    font-family:var(--font-sans);font-weight:700;font-size:15px;letter-spacing:1.2px;
     text-transform:uppercase;padding:10px 0;box-shadow:inset 0 2px 8px rgba(0,0,0,.15);
   }
   .ticker-track{display:inline-block;animation:mueve 24s linear infinite}
@@ -155,17 +179,17 @@
   section{padding:68px 0}
   .sec-head{margin-bottom:30px;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
   .sec-head .eyebrow{
-    color:var(--rojo);font-family:'Inter';font-weight:700;
+    color:var(--rojo);font-family:var(--font-sans);font-weight:700;
     letter-spacing:2.5px;font-size:14px;text-transform:uppercase;
   }
-  .sec-head h2{font-size:clamp(28px,4vw,40px);font-weight:800;margin-top:4px}
+  .sec-head h2{font-size:var(--fs-h2);font-weight:700;margin-top:4px;line-height:1.1;letter-spacing:-.01em}
 
   /* chips filtro */
   .chips{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:26px}
   .chip{
     background:var(--humo);border:1.5px solid var(--linea);color:var(--negro);
     padding:9px 17px;border-radius:30px;font-size:13.5px;font-weight:600;cursor:pointer;
-    transition:all .15s;font-family:'Inter',sans-serif;
+    transition:all .15s;font-family:var(--font-sans);
   }
   .chip:hover{border-color:var(--rojo);color:var(--rojo)}
   .chip.active{background:var(--negro);border-color:var(--negro);color:#fff}
@@ -188,11 +212,19 @@
     font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;letter-spacing:.5px;z-index:2;
     backdrop-filter:blur(3px);
   }
+  /* Estado de stock: badge sobre la imagen (antes era una frase en el cuerpo).
+     Disponible / Últimas N / Agotado. */
   .card-img .tag-stock{
     position:absolute;top:10px;right:10px;background:var(--rojo);color:#fff;
-    font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:20px;letter-spacing:.3px;z-index:2;
-    text-transform:uppercase;
+    font-size:var(--fs-micro);font-weight:700;padding:4px 9px;border-radius:20px;
+    letter-spacing:.05em;z-index:2;text-transform:uppercase;
   }
+  .card-img .tag-stock.ok{background:var(--verde)}
+  .card-img .tag-stock.out{background:var(--gris)}
+  /* Slot de imagen de categoría (ilustración) cuando no hay foto propia. */
+  .card-img.is-cat{background:linear-gradient(150deg,#eef0f3 0%,#e2e4e9 100%)}
+  .card-img.is-cat img{width:56%;height:56%;object-fit:contain;transition:transform .35s}
+  .card:hover .card-img.is-cat img{transform:scale(1.06)}
 
   /* placa de producto (cuando Ana todavía no eligió una foto) */
   .placa{
@@ -204,51 +236,53 @@
   .placa-marca{
     position:absolute;top:10px;left:10px;background:var(--negro);color:#fff;
     font-size:10px;font-weight:700;letter-spacing:.6px;padding:3px 9px;border-radius:20px;
-    text-transform:uppercase;font-family:'Inter';z-index:2;
+    text-transform:uppercase;font-family:var(--font-sans);z-index:2;
   }
   .placa-watermark{
     position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    font-family:'Inter';font-weight:800;font-size:44px;color:rgba(23,24,28,.055);
+    font-family:var(--font-sans);font-weight:700;font-size:44px;color:rgba(23,24,28,.055);
     text-transform:uppercase;letter-spacing:2px;white-space:nowrap;transform:rotate(-9deg);z-index:0;
   }
   .placa-nombre{
-    font-family:'Inter';font-weight:800;font-size:19px;line-height:1.08;
+    font-family:var(--font-sans);font-weight:700;font-size:19px;line-height:1.08;
     color:#41444c;text-transform:uppercase;letter-spacing:.2px;position:relative;z-index:1;
     display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
   }
   .placa-ref{
-    font-size:10.5px;color:#888e98;background:rgba(255,255,255,.75);padding:2px 10px;
-    border-radius:20px;font-weight:600;letter-spacing:.3px;position:relative;z-index:1;
+    font-family:var(--font-mono);font-size:10.5px;color:#888e98;background:rgba(255,255,255,.75);
+    padding:2px 10px;border-radius:20px;font-weight:500;letter-spacing:.01em;position:relative;z-index:1;
   }
   /* versión chiquita para las miniaturas del chat (54x54) */
   .foto-tile .placa{padding:4px;gap:0}
   .foto-tile .placa-marca,.foto-tile .placa-watermark,.foto-tile .placa-ref{display:none}
   .foto-tile .placa-nombre{font-size:8px;line-height:1.1;-webkit-line-clamp:4;color:#565a62}
 
-  .card-body{padding:15px 16px 17px;display:flex;flex-direction:column;gap:4px;flex:1}
-  /* Nombre a 2 líneas fijas: los nombres de Celeste van de 3 a 12+ palabras
-     y sin tope estiraban la fila entera y descolgaban el botón. El nombre
-     completo sigue accesible: title al pasar el mouse, la placa gris de
-     arriba, y el chat al pulsar COTIZAR. min-height reserva las 2 líneas
-     también para los nombres cortos, así "Ref:" arranca a la misma altura
-     en toda la fila. */
+  .card-body{padding:14px 15px 15px;display:flex;flex-direction:column;gap:3px;flex:1}
+  /* La imagen ya dice "qué tipo de repuesto es", así que el nombre puede ir en
+     caja de texto normal (no ALL CAPS) y corto. 2 líneas fijas: los nombres de
+     Celeste van de 3 a 12+ palabras; sin tope estiraban la fila y descolgaban
+     el botón. Nombre completo: title al pasar el mouse, y el chat al cotizar. */
   .card-body h3{
-    font-size:18.5px;font-weight:700;line-height:1.2;
+    font-size:var(--fs-h3-card);font-weight:600;line-height:1.28;text-transform:none;
+    letter-spacing:-.003em;color:var(--negro);
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
-    min-height:calc(1.2em * 2);
+    min-height:calc(1.28em * 2);
   }
-  .card-body .ref{font-size:12.5px;color:var(--gris)}
-  /* margin-top:auto empuja precio + stock + botón al fondo de la tarjeta.
-     Como las tarjetas de una fila ya miden igual (grid), COTIZAR queda a la
-     misma altura en todas, sin importar el largo del nombre. */
+  /* margin-top:auto empuja el bloque precio + ref + botón al fondo, así COTIZAR
+     queda a la misma altura en toda la fila sin importar el largo del nombre. */
   .card-body .precio{
-    font-family:'Inter';font-weight:800;font-size:25px;color:var(--rojo);margin-top:auto;padding-top:6px;
+    font-weight:700;font-size:var(--fs-price-card);color:var(--rojo);
+    font-variant-numeric:tabular-nums;margin-top:auto;padding-top:8px;
   }
-  .card-body .stock{font-size:12.5px;color:var(--verde);font-weight:600}
+  /* La referencia baja de jerarquía: es para el asesor/mecánico, no para
+     decidir la compra. Mono (Plex Mono, 0 con punto), chica, gris. */
+  .card-body .ref{
+    font-family:var(--font-mono);font-size:var(--fs-ref);color:var(--gris);letter-spacing:.01em;
+  }
   .card-body button{
-    margin-top:12px;background:var(--negro);color:#fff;border:none;border-radius:7px;
-    padding:11px;font-family:'Inter';font-weight:700;font-size:15px;
-    letter-spacing:.8px;text-transform:uppercase;cursor:pointer;transition:background .15s;
+    margin-top:11px;background:var(--negro);color:#fff;border:none;border-radius:7px;
+    padding:11px;font-family:var(--font-sans);font-weight:700;font-size:var(--fs-btn);
+    letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .15s;
   }
   .card-body button:hover{background:var(--rojo)}
   .grid-cat-empty{grid-column:1/-1;text-align:center;padding:40px 0;color:var(--gris);font-size:15px}
@@ -274,8 +308,8 @@
     background:var(--humo);color:var(--gris);font-size:11.5px;font-weight:600;
     padding:4px 11px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px;
   }
-  .moto-body h3{font-size:24px;font-weight:800;font-family:'Inter';text-transform:uppercase;margin-top:2px}
-  .moto-precio{font-family:'Inter';font-weight:800;font-size:32px;color:var(--rojo)}
+  .moto-body h3{font-size:var(--fs-h3-moto);font-weight:700;font-family:var(--font-sans);text-transform:uppercase;letter-spacing:-.01em;margin-top:2px}
+  .moto-precio{font-family:var(--font-sans);font-weight:700;font-size:var(--fs-price-moto);color:var(--rojo);font-variant-numeric:tabular-nums}
   .moto-desc{
     font-size:13.5px;color:var(--gris);line-height:1.55;max-height:0;overflow:hidden;
     transition:max-height .3s ease;margin:0;
@@ -284,7 +318,7 @@
   .moto-ctas{display:flex;flex-direction:column;gap:8px;margin-top:8px}
   .btn-wa{
     display:flex;align-items:center;justify-content:center;gap:8px;background:var(--verde-wa);color:#fff;
-    border:none;border-radius:8px;padding:13px;font-family:'Inter';font-weight:700;font-size:16px;
+    border:none;border-radius:8px;padding:13px;font-family:var(--font-sans);font-weight:700;font-size:16px;
     letter-spacing:.5px;text-transform:uppercase;text-decoration:none;cursor:pointer;transition:background .15s;
   }
   .btn-wa:hover{background:#1fb355}
@@ -294,7 +328,7 @@
   .canal-alterno .lucide{width:1.1em;height:1.1em;margin-right:4px;vertical-align:-2px}
   .btn-detalle{
     background:transparent;border:1.5px solid var(--linea);color:var(--negro);border-radius:8px;
-    padding:11px;font-family:'Inter';font-weight:700;font-size:14.5px;letter-spacing:.5px;
+    padding:11px;font-family:var(--font-sans);font-weight:700;font-size:14.5px;letter-spacing:.5px;
     text-transform:uppercase;cursor:pointer;transition:border-color .15s,color .15s;
   }
   .btn-detalle:hover{border-color:var(--negro)}
@@ -359,7 +393,7 @@
   /* footer */
   footer{background:var(--negro);color:#aeb2ba;padding:48px 0 90px;font-size:14px}
   footer .wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:26px}
-  footer h4{color:#fff;font-family:'Inter';font-size:18px;text-transform:uppercase;margin-bottom:10px;letter-spacing:1px}
+  footer h4{color:#fff;font-family:var(--font-sans);font-size:18px;text-transform:uppercase;margin-bottom:10px;letter-spacing:1px}
   footer a{color:#aeb2ba;text-decoration:none}
   footer a:hover{color:#fff}
   footer p{line-height:1.7}
@@ -385,7 +419,7 @@
     position:absolute;top:2px;right:2px;background:var(--rojo);color:#fff;
     font-size:11px;font-weight:700;width:20px;height:20px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;border:2px solid #fff;
-    font-family:'Inter',sans-serif;
+    font-family:var(--font-sans);
   }
   .chat-panel{
     position:fixed;bottom:96px;right:22px;z-index:100;
@@ -406,8 +440,8 @@
   }
   .cp-avatar{
     width:40px;height:40px;border-radius:50%;background:linear-gradient(145deg,var(--rojo),var(--rojo-osc));
-    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;
-    border:2px solid rgba(255,255,255,.35);font-family:'Inter';
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;
+    border:2px solid rgba(255,255,255,.35);font-family:var(--font-sans);
   }
   .cp-info{flex:1;min-width:0}
   .cp-name{font-weight:600;font-size:15px}
@@ -440,12 +474,16 @@
     width:54px;height:54px;border-radius:9px;flex-shrink:0;overflow:hidden;background:#eee;
   }
   .chat-prod .foto-tile img{width:100%;height:100%;object-fit:cover;display:block}
+  .chat-prod .foto-tile.is-cat{
+    background:linear-gradient(150deg,#eef0f3,#e2e4e9);
+    display:flex;align-items:center;justify-content:center;
+  }
   .chat-prod .info{flex:1;min-width:0;line-height:1.42}
   /* Botón de acción dentro de cada resultado del buscador del chat. */
   .chat-prod .info .prod-cta{
     margin-top:8px;display:inline-flex;align-items:center;gap:5px;
     background:var(--wa-teal);color:#fff;border:none;border-radius:8px;
-    padding:7px 15px;font-size:12.8px;font-weight:600;font-family:'Inter',sans-serif;
+    padding:7px 15px;font-size:12.8px;font-weight:600;font-family:var(--font-sans);
     cursor:pointer;transition:background .12s;
   }
   .chat-prod .info .prod-cta .lucide{margin-right:1px}
@@ -468,7 +506,7 @@
   .qbtn{
     background:#fff;border:none;border-radius:10px;padding:9px 12px;color:#027EB5;
     font-size:13.5px;font-weight:500;cursor:pointer;box-shadow:0 1px 1px rgba(0,0,0,.10);
-    text-align:center;font-family:'Inter',sans-serif;animation:pop .18s ease-out;transition:background .1s;
+    text-align:center;font-family:var(--font-sans);animation:pop .18s ease-out;transition:background .1s;
   }
   .qbtn:hover{background:#f5fbff}
   .qbtn:active{background:#eaf6fc}
@@ -478,7 +516,7 @@
     padding:9px 14px;box-shadow:0 1px 2px rgba(0,0,0,.1);border:1.5px solid transparent;transition:border-color .15s;
   }
   .cp-pill:focus-within{border-color:var(--verde-wa)}
-  .cp-pill input{flex:1;border:none;outline:none;font-size:14px;font-family:'Inter',sans-serif;background:transparent}
+  .cp-pill input{flex:1;border:none;outline:none;font-size:14px;font-family:var(--font-sans);background:transparent}
   .cp-send{
     width:42px;height:42px;border-radius:50%;border:none;background:var(--wa-teal);color:#fff;
     font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;
