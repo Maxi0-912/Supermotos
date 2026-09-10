@@ -371,6 +371,12 @@ let captura = null;       // cuando el bot espera un dato escrito (nombre/teléf
 let ultimosResultados = [];  // los productos del último buscar(): los botones
                              // "Agregar"/"Avísenme" de cada tarjeta del chat
                              // los buscan acá por id (ver agregarDesdeChat)
+let creandoSolicitud = false;  // hay un POST a /api/cotizaciones/ en curso.
+                               // Bloquea el re-envío si el cliente, impaciente,
+                               // vuelve a mandar sus datos o toca otra vez
+                               // "Confirmar pedido": sin esto se creaban DOS
+                               // cotizaciones (y salía el botón de resumen
+                               // duplicado).
 
 function toggleChat(){
   panel.classList.toggle("open");
@@ -446,8 +452,9 @@ function botButtons(opts){
   lucide.createIcons();
 }
 function clearButtons(){
-  const g = document.getElementById("activeBtns");
-  if(g) g.remove();
+  // Barre TODOS los grupos de botones, no solo el primero con id="activeBtns":
+  // si dos renders llegaran a solaparse, no queda ninguno huérfano en pantalla.
+  chat.querySelectorAll(".btn-group").forEach(g => g.remove());
 }
 function chatProdHtml(p, extra){
   const miniatura = p.foto
@@ -553,6 +560,8 @@ async function confirmarAvisoStock(txt, p){
     captura = (t)=>confirmarAvisoStock(t, p);
     return;
   }
+  if(creandoSolicitud) return;   // ya hay un envío en curso: ignorar el re-toque
+  creandoSolicitud = true;
   try{
     await apiCrearCotizacion({
       nombre_cliente: d.nombre, telefono: d.telefono, origen: "web-agotado",
@@ -561,6 +570,8 @@ async function confirmarAvisoStock(txt, p){
     await botMsg(`<i data-lucide="check-circle" class="lucide" style="color:var(--verde)"></i> ¡Listo, ${esc(d.nombre.split(" ")[0])}! Te contactamos al <b>${esc(d.telefono)}</b> apenas tengamos <b>${esc(p.nombre)}</b> disponible.`);
   }catch(e){
     await botMsg("Tuvimos un problema guardando tu solicitud 😔. Intenta de nuevo o escríbenos al WhatsApp del almacén.");
+  }finally{
+    creandoSolicitud = false;
   }
   await menu();
 }
@@ -617,6 +628,8 @@ async function confirmarPedidoConDatos(txt){
     captura = confirmarPedidoConDatos;
     return;
   }
+  if(creandoSolicitud) return;   // ya hay un envío en curso: ignorar el re-toque
+  creandoSolicitud = true;
   const itemsCotizados = [...cotizacion];
   try{
     const r = await apiCrearCotizacion({
@@ -639,6 +652,8 @@ async function confirmarPedidoConDatos(txt){
     await botMsg("Tuvimos un problema guardando el pedido 😔. Intenta de nuevo en un momento o escríbenos al WhatsApp del almacén.");
     cotizacion = [];
     await menu();
+  }finally{
+    creandoSolicitud = false;
   }
 }
 async function vaciar(){
