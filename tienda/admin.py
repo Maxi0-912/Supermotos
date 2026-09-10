@@ -14,7 +14,7 @@ from django.utils.safestring import mark_safe
 
 from .models import (Producto, Cotizacion, ItemCotizacion,
                      VentaRapida, ImportacionInventario,
-                     Motocicleta, ConfiguracionSitio)
+                     Motocicleta, ConfiguracionSitio, nombre_es_ilegible)
 from .importador import importar_excel
 
 admin.site.site_header = "SuperMotos La 4ta — Panel de administración"
@@ -41,6 +41,31 @@ class ConFotoFilter(admin.SimpleListFilter):
         if self.value() == "no":
             return queryset.filter(sin_imagen)
         return queryset
+
+
+class NombreLegibleFilter(admin.SimpleListFilter):
+    """Cola de trabajo para Ana: los productos cuyo nombre no le dice nada a un
+    cliente (la descripción de Celeste era solo un código, o quedó una
+    referencia incrustada). Se filtran para irlos corrigiendo a mano en el
+    campo «Nombre»."""
+    title = "nombre legible"
+    parameter_name = "nombre_legible"
+
+    def lookups(self, request, model_admin):
+        return [("no", "No — por revisar"), ("si", "Sí")]
+
+    def queryset(self, request, queryset):
+        valor = self.value()
+        if valor not in ("si", "no"):
+            return queryset
+        # Se evalúa en Python (el criterio es una heurística de texto, no una
+        # condición SQL). Son ~3 mil filas y una cadena corta por fila: barato
+        # para una pantalla de administración.
+        ilegibles = [pk for pk, nombre in queryset.values_list("pk", "nombre")
+                     if nombre_es_ilegible(nombre)]
+        if valor == "no":
+            return queryset.filter(pk__in=ilegibles)
+        return queryset.exclude(pk__in=ilegibles)
 
 
 class BuscadorFotoAdminMixin:
@@ -84,9 +109,9 @@ class BuscadorFotoAdminMixin:
 
 @admin.register(Producto)
 class ProductoAdmin(BuscadorFotoAdminMixin, admin.ModelAdmin):
-    list_display = ["miniatura", "codigo_celeste", "referencia", "nombre", "categoria",
+    list_display = ["miniatura", "codigo_celeste", "referencia", "nombre_col", "categoria",
                     "marca", "precio", "stock", "activo"]
-    list_filter = ["activo", ConFotoFilter, "marca", "categoria"]
+    list_filter = ["activo", NombreLegibleFilter, ConFotoFilter, "marca", "categoria"]
     search_fields = ["codigo_celeste", "referencia", "nombre", "modelos_compatibles"]
     list_editable = ["precio", "stock", "activo"]
     list_per_page = 50
@@ -94,6 +119,18 @@ class ProductoAdmin(BuscadorFotoAdminMixin, admin.ModelAdmin):
     fields = ["codigo_celeste", "referencia", "nombre", "descripcion_original",
               "categoria", "marca", "precio", "stock", "modelos_compatibles",
               "imagen", "imagen_url", "vista_previa", "activo"]
+
+    @admin.display(description="Nombre", ordering="nombre")
+    def nombre_col(self, obj):
+        """Marca con ⚠ los nombres por revisar y, debajo, muestra lo que hoy
+        vería el cliente en la tarjeta (nombre_publico)."""
+        if not nombre_es_ilegible(obj.nombre):
+            return obj.nombre
+        return format_html(
+            '<span title="Nombre no legible — por corregir a mano">⚠</span> '
+            '<span style="color:#b8860b">{}</span><br>'
+            '<small style="color:#888">tarjeta: {}</small>',
+            obj.nombre or "(vacío)", obj.nombre_publico)
 
 
 @admin.register(Motocicleta)
