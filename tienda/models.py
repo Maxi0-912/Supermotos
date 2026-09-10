@@ -49,6 +49,91 @@ MODELOS_CONOCIDOS = [
     "NKD", "TTR", "AK", "APACHE", "GIXXER",
 ]
 
+# --------------------------------------------------------------------------
+# EXTENSIONES para los nombres ilegibles vistos con el inventario real
+# cargado (3.088 productos). Todo lo de abajo AMPLÍA el parser; REF_PATRONES
+# y la lógica de arriba no se tocan.
+#
+# Patrones de referencia ADICIONALES. Se prueban DESPUÉS de REF_PATRONES, así
+# que ninguna descripción que hoy matchea con los de arriba cambia de
+# resultado. Cubren formatos del inventario real que hoy caen fuera:
+REF_PATRONES_EXT = [
+    # sufijo de lote de Celeste pegado con "/": "342123/51", "43082-1128/51"
+    re.compile(r'^([0-9A-Za-z]{4,6}(?:-[0-9A-Za-z]{2,7}){0,3})/\d{1,3}(?=\s|$)'),
+    # Honda de ferretería, bloque medio de 4-5 díg.: "93892-05012-08", "96001-06016-00S"
+    re.compile(r'^(\d{4,6}-\d{4,6}-\d{1,3}[A-Za-z]{0,2})(?=\s|$)'),
+    # referencia con un guion pegado al nombre: "50661-KRH-900-CAUCHO", "16111-K38-901-"
+    re.compile(r'^([0-9A-Za-z]{4,6}-[0-9A-Za-z]{2,4}-[0-9A-Za-z]{2,7})(?=-)'),
+    # numérica con sufijo de color/talla: "818212-AZ-L"
+    re.compile(r'^(\d{6}-[A-Za-z]{1,3}(?:-[0-9A-Za-z]{1,3})?)(?=\s|$)'),
+]
+
+# Código de proveedor NO Honda al inicio: "VH10384", "NYS06132", "CAB2551",
+# "M401784", "NGK7101561", "DD121181", y rodamientos "6004ZZEC3" / "6203ZZ-C3".
+# El sufijo tras el bloque de dígitos solo se admite si empieza por letra y
+# trae un dígito ("K12913HF100DS") o son <=3 letras seguidas de separador
+# ("E32005JS/..."): así "VH20059JUEGO" NO se traga la palabra "JUEGO" -- eso
+# lo separa _desglosar_pegado y luego se reintenta la extracción.
+COD_PROVEEDOR_RE = re.compile(
+    r'^(?:[A-Za-z]{1,4}\d{4,}(?:[A-Za-z][0-9A-Za-z]*\d[0-9A-Za-z]*|[A-Za-z]{1,3})?'
+    r'|\d{4}[A-Za-z]{2,}[0-9A-Za-z\-]{0,4})(?=[\s/\-]|$)')
+
+# Referencia (Honda o de proveedor) PEGADA a la primera palabra, sin espacio:
+#   "88110-KRH-901ESPEJO"  "16111-K43-D41PISTON"  "VH20059JUEGO"
+# Solo se usa como último recurso, si la extracción normal no encontró nada
+# (así "52400-KST-951ZAS ...", donde ZAS es sufijo de color, no se parte).
+_GLUE_HONDA_RE = re.compile(r'^(\d{3,6}-[0-9A-Z]{1,4}-[0-9A-Z]*\d)([A-Z]{4,})', re.I)
+_GLUE_PROV_RE  = re.compile(r'^([A-Z]{1,4}\d{4,}\d*)([A-Z]{3,})', re.I)
+
+# Separadores sueltos + un sufijo corto de lote/revisión que Celeste deja tras
+# la referencia: "/51 ", "- ", "-08 ", "00S ", "-0S ".
+SUFIJO_REF_RE = re.compile(r'^[\s/\-]+(?:\d{1,3}[A-Za-z]{0,2}(?=\s|$))?[\s/\-]*')
+
+# Referencia Honda genuina que quedó incrustada dentro del nombre (alterna, de
+# superseción, entre paréntesis). Se quita SOLO si el nombre conserva palabras
+# legibles después.
+REF_HONDA_INCRUSTADA_RE = re.compile(
+    r'\(?\s*\b\d{4,6}-[0-9A-Za-z]{2,4}-[0-9A-Za-z]{2,7}(?:-[0-9A-Za-z]{1,4})?\b\s*\)?')
+
+# Una "palabra legible" para un cliente: >=4 letras seguidas.
+_PALABRA_LEGIBLE_RE = re.compile(r'[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{4,}')
+# Referencia / código que NUNCA debería quedar dentro del nombre.
+_CODIGO_EN_NOMBRE_RE = re.compile(
+    r'\d{3,6}-[0-9A-Za-z]{2,4}-[0-9A-Za-z]{2,7}|^[A-Za-z]{1,4}\d{4,}')
+
+
+def _desglosar_pegado(t):
+    t = _GLUE_HONDA_RE.sub(r'\1 \2', t, count=1)
+    t = _GLUE_PROV_RE.sub(r'\1 \2', t, count=1)
+    return t
+
+
+def _quitar_ref_inicial(texto, con_proveedor=False):
+    """(referencia_o_'', resto) quitando UNA referencia del inicio de `texto`.
+    Prueba primero extracción limpia (patrón + frontera). Solo si nada matchea
+    y el token inicial parece una referencia pegada a una palabra, la separa y
+    reintenta."""
+    def _match(t):
+        for patron in REF_PATRONES + REF_PATRONES_EXT:
+            m = patron.match(t + " ")  # el espacio ayuda al \s / (?=\s) final
+            if m:
+                return m.group(1).upper(), t[m.end(1):]
+        if con_proveedor:
+            m = COD_PROVEEDOR_RE.match(t)
+            if m:
+                return m.group(0).upper().strip(), t[m.end():]
+        return None
+
+    r = _match(texto)
+    if r:
+        return r
+    separado = _desglosar_pegado(texto)
+    if separado != texto:
+        r = _match(separado)
+        if r:
+            return r
+    return "", texto
+
 
 def parsear_descripcion(descripcion: str) -> dict:
     """Extrae referencia Honda, nombre limpio y modelos compatibles
@@ -57,17 +142,34 @@ def parsear_descripcion(descripcion: str) -> dict:
     # Quitar números de lista "(781)" que Celeste pega dentro de la descripción
     texto = RUIDO_PEGADO_RE.sub(" ", texto)
     texto = re.sub(r'\s{2,}', ' ', texto).strip()
-    referencia = ""
 
-    for patron in REF_PATRONES:
-        m = patron.match(texto + " ")  # el espacio ayuda al \s final
-        if m:
-            referencia = m.group(1).upper()
-            texto = texto[len(m.group(1)):].strip()
+    referencia, texto = _quitar_ref_inicial(texto, con_proveedor=True)
+    texto = SUFIJO_REF_RE.sub("", texto.strip(), count=1)
+
+    # Segunda / tercera referencia pegada al inicio: Celeste a veces encadena
+    # la referencia vieja y la nueva ("16111-K38-901- 16111-K43-D41PISTON...").
+    for _ in range(2):
+        ref2, resto = _quitar_ref_inicial(texto.strip(), con_proveedor=True)
+        if not ref2:
             break
+        texto = SUFIJO_REF_RE.sub("", resto.strip(), count=1)
 
     # Quitar ruido tipo "(781) " que a veces queda al inicio del nombre
-    texto = RUIDO_INICIO_RE.sub("", texto).strip()
+    texto = RUIDO_INICIO_RE.sub("", texto.strip()).strip()
+
+    # Referencia Honda incrustada más adentro del nombre (alterna / entre
+    # paréntesis). Solo se toca el nombre si de verdad hay una referencia que
+    # quitar y si al quitarla el nombre conserva palabras legibles.
+    if REF_HONDA_INCRUSTADA_RE.search(texto):
+        limpio = REF_HONDA_INCRUSTADA_RE.sub(" ", texto)
+        limpio = re.sub(r'\(\s*\)', ' ', limpio)
+        limpio = re.sub(r'\s{2,}', ' ', limpio).strip(" -/")
+        if limpio and re.search(r'[A-Za-zÑñ]{3,}', limpio):
+            texto = limpio
+
+    # Solo separadores sueltos que dejó el recorte de la referencia (no se toca
+    # la puntuación interna del nombre original: "IZQ.", "CBF150/").
+    texto = texto.lstrip(" -/").strip()
 
     # Detectar modelos mencionados (con o sin espacios: "CB 160F" == "CB160F")
     texto_normalizado = re.sub(r'\s+', '', texto.upper()).replace('-', '')
@@ -79,11 +181,32 @@ def parsear_descripcion(descripcion: str) -> dict:
             if not any(clave in y or y in clave for y in ya):
                 modelos.append(modelo)
 
+    nombre = texto.strip()
+    # Si se extrajo una referencia y no quedó nada más, el nombre queda vacío
+    # a propósito (la descripción de Celeste era solo un código): el fallback
+    # de tarjeta y el filtro del admin lo recogen. Solo se cae a `descripcion`
+    # cuando NO hubo referencia que extraer.
+    if not nombre and not referencia:
+        nombre = descripcion
     return {
         "referencia": referencia,
-        "nombre": texto or descripcion,
+        "nombre": nombre,
         "modelos": modelos,
     }
+
+
+def nombre_es_ilegible(nombre: str) -> bool:
+    """True si el nombre no le dice nada a un cliente: vacío, puro código, o
+    con una referencia todavía incrustada. Lo usa el filtro del admin para que
+    Ana encuentre los productos por arreglar a mano."""
+    n = (nombre or "").strip()
+    if len(n) < 4:
+        return True
+    if not _PALABRA_LEGIBLE_RE.search(n):
+        return True
+    if _CODIGO_EN_NOMBRE_RE.search(n):
+        return True
+    return False
 
 
 class Producto(models.Model):
@@ -144,6 +267,26 @@ class Producto(models.Model):
         if self.imagen_url:
             return self.imagen_url
         return ""
+
+    @property
+    def nombre_publico(self):
+        """Lo que se muestra en la tarjeta. Si el nombre parseado no le dice
+        nada a un cliente (descripción de Celeste que era solo un código), se
+        arma un rótulo con lo que sí se tiene -- marca, referencia y modelos
+        compatibles -- en vez de dejar la tarjeta con un código o vacía. No se
+        inventa una descripción: solo se reordena lo que ya está en la ficha.
+        Estos productos igual salen en el filtro 'Nombre legible = No' del
+        admin para que Ana les ponga un nombre de verdad."""
+        if not nombre_es_ilegible(self.nombre):
+            return self.nombre
+        modelos = self.modelos_compatibles.strip()
+        ref = (self.referencia or self.codigo_celeste or "").strip()
+        base = f"Repuesto {self.marca}".strip() if self.marca else "Repuesto"
+        if ref:
+            base = f"{base} · ref. {ref}"
+        if modelos:
+            base = f"{base} — para {modelos}"
+        return base
 
     def save(self, *args, **kwargs):
         # texto_busqueda se recalcula SIEMPRE al guardar (el importador usa

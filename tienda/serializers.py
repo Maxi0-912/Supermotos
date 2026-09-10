@@ -15,6 +15,10 @@ class FotoSerializerMixin:
 
 class ProductoSerializer(FotoSerializerMixin, serializers.ModelSerializer):
     stock = serializers.IntegerField(source="stock_web", read_only=True)
+    # nombre_publico: si el nombre parseado quedó ilegible (descripción de
+    # Celeste que era solo un código), la tarjeta recibe un rótulo armado con
+    # marca + referencia + modelos en vez de un código suelto. Ver Producto.
+    nombre = serializers.CharField(source="nombre_publico", read_only=True)
     foto = serializers.SerializerMethodField()
 
     class Meta:
@@ -41,7 +45,7 @@ class ConfiguracionSitioSerializer(serializers.ModelSerializer):
 class ItemCotizacionSerializer(serializers.ModelSerializer):
     producto_id = serializers.PrimaryKeyRelatedField(
         source="producto", queryset=Producto.objects.filter(activo=True))
-    nombre = serializers.CharField(source="producto.nombre", read_only=True)
+    nombre = serializers.CharField(source="producto.nombre_publico", read_only=True)
 
     class Meta:
         model = ItemCotizacion

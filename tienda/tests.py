@@ -16,9 +16,10 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
-from .admin import CotizacionAdmin, PerderForm, TomarForm
+from .admin import CotizacionAdmin, NombreLegibleFilter, PerderForm, TomarForm
 from .models import (Cotizacion, ConfiguracionSitio, ImportacionInventario,
-                     ItemCotizacion, Producto)
+                     ItemCotizacion, Producto, nombre_es_ilegible,
+                     parsear_descripcion)
 from .templatetags.almacen_avisos import avisos_almacen
 
 
@@ -361,3 +362,170 @@ class ExcelNoSePersisteTests(TestCase):
         self.assertContains(resp, "No se pudo abrir el archivo")   # error claro para Ana
         self.assertEqual(
             list(Path(settings.MEDIA_ROOT).glob("importaciones/*")), [])
+
+
+class ParsearDescripcionTests(TestCase):
+    """Bug de nombres ilegibles en produccion (inventario real cargado).
+    Paso 2: el parser extendido. Cada caso viene de una descripcion real de
+    Celeste vista en el catalogo de 3.088 productos."""
+
+    def _nombre(self, desc):
+        return parsear_descripcion(desc)["nombre"].strip().upper()
+
+    # --- los tres casos del reporte -------------------------------------
+    def test_dos_referencias_encadenadas_al_inicio(self):
+        info = parsear_descripcion(
+            "16111-K38-901- 16111-K43-D41PISTON DE VACIO CARBURADOR DIAFRAGMA (TODAS LAS MOTOS)")
+        self.assertEqual(info["referencia"], "16111-K38-901")
+        self.assertEqual(
+            info["nombre"],
+            "PISTON DE VACIO CARBURADOR DIAFRAGMA (TODAS LAS MOTOS)")
+
+    def test_nombre_que_era_solo_codigo_queda_vacio(self):
+        for solo_codigo in ["3340B-AAH-001S", "3345B-AAH-001S", "52400-KWP-901",
+                            "98059-58916", "K12913HF100DS"]:
+            info = parsear_descripcion(solo_codigo)
+            self.assertEqual(info["nombre"], "", solo_codigo)
+
+    def test_codigo_de_proveedor_al_inicio_se_saca_del_nombre(self):
+        info = parsear_descripcion("VH10384 KIT CILINDRO GRIS XR150L")
+        self.assertEqual(info["nombre"], "KIT CILINDRO GRIS XR150L")
+        self.assertEqual(info["referencia"], "VH10384")
+        self.assertEqual(
+            self._nombre("NYS06132 LLANTA TRAS 90/90-18 SNAKE TL CB125F"),
+            "LLANTA TRAS 90/90-18 SNAKE TL CB125F")
+
+    # --- patrones de referencia nuevos --------------------------------
+    def test_sufijo_de_lote_pegado_con_barra(self):
+        self.assertEqual(
+            self._nombre("342123/51 PASTILLAS MF FRENO NO ABS FZ16/PULSAR135/DISCOVER"),
+            "PASTILLAS MF FRENO NO ABS FZ16/PULSAR135/DISCOVER")
+
+    def test_honda_ferreteria_bloque_medio_5_digitos(self):
+        self.assertEqual(
+            self._nombre("96001-06016-00S TORNILLO FLANGE, 6X16/CB 110"),
+            "TORNILLO FLANGE, 6X16/CB 110")
+
+    def test_guion_pegado_al_nombre(self):
+        self.assertEqual(
+            self._nombre("50661-KRH-900-CAUCHO ESTRIBO"), "CAUCHO ESTRIBO")
+
+    def test_referencia_pegada_a_la_primera_palabra(self):
+        self.assertEqual(
+            self._nombre("88110-KRH-901ESPEJO DER XR150/XR190"),
+            "ESPEJO DER XR150/XR190")
+
+    def test_referencia_incrustada_entre_parentesis(self):
+        self.assertEqual(
+            self._nombre("06179-K3C-E00 CABLE ACELERADOR(17910-K3C-E00) CB100"),
+            "CABLE ACELERADOR CB100")
+
+    # --- lo que ya funcionaba NO se rompe ----------------------------
+    def test_no_regresion_en_casos_buenos(self):
+        casos = {
+            "01210-K14-910 KIT CILINDRO (CB 110) DREAN":
+                ("01210-K14-910", "KIT CILINDRO (CB 110) DREAN"),
+            "17211-KRH-780 FILTRO DE AIRE (CB110)":
+                ("17211-KRH-780", "FILTRO DE AIRE (CB110)"),
+            "20K410S KIT DE ARRASTRE PASSION":
+                ("20K410S", "KIT DE ARRASTRE PASSION"),
+            "08233-M99-K1LQD ACEITE HONDA 10W30":
+                ("08233-M99-K1LQD", "ACEITE HONDA 10W30"),
+            "93901-25080 TORNILLO":
+                ("93901-25080", "TORNILLO"),
+        }
+        for desc, (ref, nombre) in casos.items():
+            info = parsear_descripcion(desc)
+            self.assertEqual(info["referencia"], ref, desc)
+            self.assertEqual(info["nombre"], nombre, desc)
+
+    def test_sufijo_de_color_honda_no_se_parte_como_palabra(self):
+        # "ZAS" es sufijo de color/acabado, no una palabra pegada.
+        info = parsear_descripcion("52400-KST-951ZAS AMORTIGUADOR TRAS NEGRO ECO DELUXE")
+        self.assertEqual(info["referencia"], "52400-KST-951ZAS")
+        self.assertEqual(info["nombre"], "AMORTIGUADOR TRAS NEGRO ECO DELUXE")
+
+
+class NombreIlegibleTests(TestCase):
+    """Paso 3: rotulo de respaldo en la tarjeta + cola de trabajo en el admin."""
+
+    def test_deteccion(self):
+        for malo in ["", "  ", "3345B-AAH-001S", "52400-KWP-901",
+                     "K12913HF100DS", "VH10384 ALGO"]:
+            self.assertTrue(nombre_es_ilegible(malo), repr(malo))
+        for bueno in ["KIT CILINDRO GRIS XR150L", "TORNILLO 6 X 110",
+                      "CABLE ACELERADOR CB100", "PASTILLAS FRENO"]:
+            self.assertFalse(nombre_es_ilegible(bueno), repr(bueno))
+
+    def test_nombre_publico_cae_a_marca_referencia_modelos(self):
+        p = _producto(nombre="", referencia="3345B-AAH-001S", marca="Honda",
+                      modelos_compatibles="CB110, CB125F", categoria="Repuestos original")
+        pub = p.nombre_publico
+        self.assertNotEqual(pub.strip(), "")
+        self.assertNotEqual(pub.strip(), "3345B-AAH-001S")
+        self.assertIn("3345B-AAH-001S", pub)   # la referencia como rotulo, no inventada
+        self.assertIn("CB110", pub)
+
+    def test_nombre_publico_respeta_nombre_bueno(self):
+        p = _producto(nombre="KIT CILINDRO GRIS XR150L")
+        self.assertEqual(p.nombre_publico, "KIT CILINDRO GRIS XR150L")
+
+    def test_serializer_expone_nombre_publico(self):
+        from .serializers import ProductoSerializer
+        p = _producto(nombre="", referencia="52400-KWP-901", marca="Honda")
+        data = ProductoSerializer(p).data
+        self.assertTrue(data["nombre"])
+
+    def test_filtro_admin_encuentra_los_ilegibles(self):
+        buenos = [_producto(nombre="FILTRO DE AIRE CB110") for _ in range(3)]
+        malos = [_producto(nombre="", referencia="52400-KWP-901"),
+                 _producto(nombre="3345B-AAH-001S")]
+        req = RequestFactory().get("/")
+        f = NombreLegibleFilter(req, {"nombre_legible": ["no"]}, Producto, None)
+        ids = set(f.queryset(None, Producto.objects.all()).values_list("id", flat=True))
+        self.assertEqual(ids, {m.id for m in malos})
+
+        f_ok = NombreLegibleFilter(req, {"nombre_legible": ["si"]}, Producto, None)
+        ids_ok = set(f_ok.queryset(None, Producto.objects.all()).values_list("id", flat=True))
+        self.assertEqual(ids_ok, {b.id for b in buenos})
+
+
+class MigracionReparseoTests(TestCase):
+    """0010: re-parsea los productos ya cargados y repuebla texto_busqueda."""
+
+    def setUp(self):
+        self.mig = importlib.import_module("tienda.migrations.0010_reparsear_nombres")
+
+    def _crudo(self, **campos):
+        p = _producto(**{k: v for k, v in campos.items() if k != "texto_busqueda"})
+        Producto.objects.filter(pk=p.pk).update(**campos)  # .update() evita save()
+        return p.pk
+
+    def test_reparsea_y_cubre_todas_las_filas(self):
+        pk_codigo = self._crudo(
+            nombre="VH10384 KIT CILINDRO GRIS XR150L",
+            descripcion_original="VH10384 KIT CILINDRO GRIS XR150L",
+            referencia="", modelos_compatibles="", texto_busqueda="viejo")
+        pk_solo_codigo = self._crudo(
+            nombre="52400-KWP-901", descripcion_original="52400-KWP-901",
+            referencia="", texto_busqueda="viejo")
+        self._crudo(
+            nombre="FILTRO DE AIRE CB110",
+            descripcion_original="17211-KRH-780 FILTRO DE AIRE (CB110)",
+            referencia="17211-KRH-780", texto_busqueda="viejo")
+
+        total = Producto.objects.count()
+        self.mig.reparsear(global_apps, None)
+
+        self.assertEqual(Producto.objects.count(), total)  # no se pierde ni se crea nada
+
+        codigo = Producto.objects.get(pk=pk_codigo)
+        self.assertEqual(codigo.nombre, "KIT CILINDRO GRIS XR150L")
+        self.assertEqual(codigo.referencia, "VH10384")
+
+        solo = Producto.objects.get(pk=pk_solo_codigo)
+        self.assertEqual(solo.nombre, "")
+        self.assertEqual(solo.referencia, "52400-KWP-901")
+
+        # texto_busqueda repoblado en TODAS las filas (ninguna quedo en "viejo")
+        self.assertFalse(Producto.objects.filter(texto_busqueda="viejo").exists())
