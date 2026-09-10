@@ -16,6 +16,7 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(r["error"]))
             return
         self.stdout.write(self.style.SUCCESS(
-            f"Nuevos: {r['creados']} | Actualizados: {r['actualizados']} | Omitidos: {r['omitidos']}"))
+            f"Nuevos: {r['creados']} | Actualizados: {r['actualizados']} | "
+            f"Omitidos: {r['omitidos']} | No-producto (inactivas): {r.get('no_producto', 0)}"))
         for d in r["detalles"]:
             self.stdout.write("  " + d)

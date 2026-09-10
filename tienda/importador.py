@@ -58,6 +58,37 @@ def _a_entero(valor):
         return 0
 
 
+# Filas del export de Celeste que NO son un repuesto: la línea del IVA, cobros
+# (flete, mano de obra) y servicios de taller. Se detectaron el 2026-09-09 al
+# revisar el inventario real (3.088 filas) -- un cliente buscando repuestos no
+# debería ver "IVA" ni "MANO DE OBRA" entre los resultados.
+#
+# NO se descartan: se importan igual (nunca se tira en silencio un dato que
+# viene del sistema del cliente) pero entran con activo=False, así quedan
+# fuera del catálogo y del buscador y Ana las ve en el admin, recuperables con
+# un clic si esta lista se equivocara.
+#
+# La coincidencia es por descripción EXACTA (normalizada: sin tildes, sin
+# mayúsculas, espacios colapsados), NO por palabra clave: "AJUSTE",
+# "SEGURO", "SINCRONIZACION" aparecen en nombres de piezas reales ("PLACA
+# AJUSTE DE CADENA", "KIT SINCRONIZACION (FILTRO + BUJIA)", "SEGURO SILLIN Y
+# LLAVES") que SÍ son productos. Si aparece otra fila de este tipo, se agrega
+# a mano acá.
+DESCRIPCIONES_NO_PRODUCTO = {
+    "iva",
+    "flete",
+    "mano de obra",
+    "sincronizacion moto cb125f",
+    "lubricacion guayas",
+    "revision de lo 1000k",
+    "servicio de torno",
+}
+
+
+def _es_no_producto(descripcion):
+    return _normalizar(re.sub(r"\s+", " ", descripcion)) in DESCRIPCIONES_NO_PRODUCTO
+
+
 def detectar_columnas(fila_encabezados):
     """Devuelve {nombre_interno: indice_columna} buscando por alias."""
     encabezados = [_normalizar(c) for c in fila_encabezados]
@@ -108,7 +139,7 @@ def importar_excel(ruta_o_archivo, desactivar_faltantes=False):
     if not mapa:
         return {"ok": False, "error": "No se encontraron las columnas Código y Descripción en el archivo. Revisa que sea el Excel exportado desde Productos en Celeste.", "creados": 0, "actualizados": 0, "omitidos": 0, "detalles": []}
 
-    creados = actualizados = omitidos = 0
+    creados = actualizados = omitidos = no_producto = 0
     detalles = []
     codigos_vistos = set()
 
@@ -151,6 +182,13 @@ def importar_excel(ruta_o_archivo, desactivar_faltantes=False):
                 datos["precio"] = _a_numero(fila[mapa["precio"]])
             if "stock" in mapa:
                 datos["stock"] = _a_entero(fila[mapa["stock"]])
+            # Solo se FUERZA activo cuando la regla de no-producto aplica, y
+            # solo a False. Para las filas normales `activo` no va en defaults:
+            # así una desactivación que Ana hizo a mano en el admin no se pisa
+            # al reimportar.
+            if _es_no_producto(descripcion):
+                datos["activo"] = False
+                no_producto += 1
 
             _, creado = Producto.objects.update_or_create(
                 codigo_celeste=codigo, defaults=datos)
@@ -163,5 +201,13 @@ def importar_excel(ruta_o_archivo, desactivar_faltantes=False):
     if desactivar_faltantes and codigos_vistos:
         Producto.objects.exclude(codigo_celeste__in=codigos_vistos).update(activo=False)
 
+    if no_producto:
+        # insert(0): que el resumen no se pierda si hay muchas advertencias de
+        # fila (detalles se corta en 50 al devolver).
+        detalles.insert(0,
+            f"{no_producto} fila(s) no son repuesto (IVA, fletes, servicios de "
+            f"taller): importadas como inactivas, no aparecen en el catálogo.")
+
     return {"ok": True, "creados": creados, "actualizados": actualizados,
-            "omitidos": omitidos, "detalles": detalles[:50]}
+            "omitidos": omitidos, "no_producto": no_producto,
+            "detalles": detalles[:50]}
