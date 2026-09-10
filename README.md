@@ -95,8 +95,25 @@ en su lugar (nunca un enlace a un número inventado).
 1. Subir este repo a GitHub y crear proyecto en Railway con PostgreSQL
 2. Variables (ver `.env.example`): `SECRET_KEY`, `DATABASE_URL` (automática al
    agregar el plugin de Postgres), `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `CSRF_ORIGIN`
-3. El `Procfile` ya corre `collectstatic` y `migrate` antes de levantar gunicorn
-4. `python manage.py createsuperuser` en la consola de Railway
+3. `python manage.py createsuperuser` en la consola de Railway
+
+### ⚠️ Las migraciones se corren A MANO (por ahora)
+`railway.json` define `preDeployCommand: python manage.py migrate`, pero **hoy
+Railway no lo está aplicando** (se descubrió al desplegar: hubo que correr las
+migraciones desde la consola). El `Procfile` **solo** levanta gunicorn, no
+migra. Hasta que el pre-deploy quede arreglado, después de **cada push que
+traiga una migración nueva** hay que entrar a la consola de Railway y correr:
+
+```bash
+/opt/venv/bin/python manage.py migrate
+```
+
+Migraciones que **no pueden saltarse** (tocan datos, no solo el esquema):
+- `0005_poblar_texto_busqueda` — llena `texto_busqueda` de todos los productos
+- `0008_migrar_estados_cotizacion` — mapea los estados viejos de cotización
+- `0010_reparsear_nombres` — **re-parsea los ~3.088 productos ya cargados** con
+  el parser de nombres corregido; sin ella, el catálogo en producción sigue
+  mostrando el código dentro del nombre ("VH10384 KIT CILINDRO…")
 
 ## Pendientes cuando llegue el Excel real
 - [ ] Validar mapeo de columnas con el archivo real de Ana
