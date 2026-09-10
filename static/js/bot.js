@@ -257,7 +257,7 @@ function renderGrid(lista){
           : placaHtml(p)}
       </div>
       <div class="card-body">
-        <h3>${esc(p.nombre)}</h3>
+        <h3 title="${esc(p.nombre)}">${esc(p.nombre)}</h3>
         <div class="ref">Ref: ${esc(p.ref)}</div>
         <div class="precio">${fmt(p.precio)}</div>
         <div class="stock">${p.stock>0 ? `<i data-lucide="check-circle" class="lucide"></i> ${p.stock} en stock` : `<span style="color:var(--rojo)"><i data-lucide="circle-x" class="lucide"></i> Agotado por ahora</span>`}</div>
