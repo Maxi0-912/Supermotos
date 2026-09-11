@@ -15,6 +15,9 @@ urlpatterns = [
     path('', frontend),
     path('admin/', admin.site.urls),
     path('api/', include('tienda.urls')),
+    # Panel interno de cotizaciones (cola del vendedor + resumen de la dueña).
+    # Interfaz propia, no el admin: reutiliza el login de Django tal cual.
+    path('panel/', include('tienda.urls_panel')),
 ]
 
 # WhiteNoise sirve solo STATIC_ROOT, no MEDIA_ROOT. Antes /media/ solo se

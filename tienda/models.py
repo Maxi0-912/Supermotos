@@ -2,6 +2,7 @@ import re
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F
+from django.utils import timezone
 
 from .busqueda import normalizar
 
@@ -327,15 +328,24 @@ class Cotizacion(models.Model):
     telefono = models.CharField("Teléfono / WhatsApp", max_length=30, blank=True)
     estado = models.CharField(max_length=15, choices=ESTADOS, default="nueva")
     origen = models.CharField(max_length=20, default="web")  # web | web-agotado | moto
-    # Texto libre y no FK a User: son dos vendedores de mostrador compartiendo
-    # un WhatsApp, sin cuentas propias en el panel. Si el equipo crece y hace
-    # falta forzar login por vendedor, esto se migra a FK sin perder datos.
+    # Texto libre, no FK a User: cada vendedor ya tiene su propia cuenta (panel
+    # de cotizaciones, tienda/views_panel.py) pero este campo nunca se escribe
+    # a mano -- lo llena el código con el nombre del usuario logueado al tomar
+    # la cotización. Sin escritura manual no hay riesgo de typo, así que no
+    # hace falta la FK solo para tener el dato limpio.
     asesor = models.CharField("Asesor que la tomó", max_length=80, blank=True)
     tomada_en = models.DateTimeField("Tomada el", null=True, blank=True)
     motivo_perdida = models.CharField("Motivo de pérdida", max_length=20,
         choices=MOTIVOS_PERDIDA, blank=True)
     notas_asesor = models.TextField("Notas del asesor", blank=True)
     creada = models.DateTimeField(auto_now_add=True)
+    # Cuándo se marcó vendida o perdida (no cuándo se creó ni cuándo se tomó).
+    # Sin esto, "cuánto se vendió hoy/esta semana" se calcularía sobre la fecha
+    # de creación: una cotización de hace 2 semanas que se cierra hoy no
+    # contaría como venta de hoy. Se administra sola en save() (ver abajo),
+    # igual que motivo_perdida se limpia solo en clean() -- ningún código que
+    # llame a .save() tiene que acordarse de tocarlo.
+    resuelta_en = models.DateTimeField("Resuelta el", null=True, blank=True)
 
     class Meta:
         verbose_name = "Cotización"
@@ -360,6 +370,22 @@ class Cotizacion(models.Model):
             self.motivo_perdida = ""
 
     def save(self, *args, **kwargs):
+        # resuelta_en se pone sola la primera vez que el estado ATERRIZA en
+        # vendida/perdida, y se limpia si sale de ahí (ej. se reabre por
+        # error). Comparar contra el valor que ya está en la base -- no contra
+        # "el estado anterior en memoria" -- porque quien llama a save() acá
+        # (vistas del panel, acciones del admin, shell) no necesariamente
+        # cargó el objeto un instante antes. Un SELECT extra por cada guardado
+        # que cambia de estado; no es un endpoint de alto tráfico.
+        anterior = None
+        if self.pk:
+            anterior = (Cotizacion.objects.filter(pk=self.pk)
+                        .values_list("estado", flat=True).first())
+        if self.estado in ("vendida", "perdida"):
+            if anterior != self.estado:
+                self.resuelta_en = timezone.now()
+        else:
+            self.resuelta_en = None
         # full_clean() (no solo la validación del form del admin) para que la
         # regla de motivo_perdida obligatorio se cumpla también desde una
         # acción masiva o desde el shell, no únicamente al editar a mano.
