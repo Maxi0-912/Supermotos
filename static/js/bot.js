@@ -45,13 +45,46 @@ function placaHtml(p){
   </div>`;
 }
 
+/* Mapa nombre de repuesto -> ilustración de categoría (static/img/cat/*.svg).
+   Extiende el dict CHIP_KEYWORDS de ProductoViewSet a ~15 grupos. El `categoria`
+   de Celeste no sirve (94% es "Repuestos original/generico"), así que se
+   clasifica por palabra en el nombre. Primer match gana, de lo más específico
+   a lo más genérico. Sin match -> "" (la tarjeta cae a la placa). */
+const CATEGORIAS_VISUALES = [
+  ["frenos",      ["pastilla","freno","banda","zapata","caliper","mordaza","bomba de freno"]],
+  ["bujias",      ["bujia","capuchon bujia"]],
+  ["filtros",     ["filtro"]],
+  ["aceites",     ["aceite","lubricante","grasa","refrigerante"]],
+  ["bateria",     ["bateria","pila","regulador","rectificador"]],
+  ["luces",       ["farola","farol","bombillo","halogeno","lente","direccional","stop","cocuyo","exploradora","led"]],
+  ["encendido",   ["cdi","bobina","estator","escobilla","pulsador","bendix","arranque","rele","platino"]],
+  ["carburacion", ["carburador","chicler","flotador","aguja","inyector","aceleracion","diafragma","vacio"]],
+  ["embrague",    ["clutch","embrague","croche"]],
+  ["transmision", ["arrastre","cadena","piñon","pinon","sprocket","corona","catalina","estrella"]],
+  ["motor",       ["cilindro","piston","biela","cabezote","culata","cigüeñal","ciguenal","arbol de levas","cadenilla","empaque","junta","valvula","kit cilindro","cabeza","balancin","leva"]],
+  ["llantas",     ["llanta","neumatico"," rin","caucho","tubo","correa"]],
+  ["suspension",  ["amortiguador","telescopico","tijera","rodamiento","balinera","ruliman","reten","canasta","barra estabil"]],
+  ["cables",      ["guaya","cable","manigueta","maneta","palanca","pedal","manubrio","mango","acelerador","timon","selector"]],
+  ["carroceria",  ["guardabarro","guardafango","tapa","carenaje","tanque","silla","sillin","asiento","parrilla","defensa","cubierta","espejo","persiana","protector","estribo"]],
+];
+function _norm(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,""); }
+function categoriaVisual(nombre){
+  const n = _norm(nombre);
+  for(const [slug, kws] of CATEGORIAS_VISUALES){
+    if(kws.some(k => n.includes(k))) return `${API_URL}/static/img/cat/${slug}.svg`;
+  }
+  return "";
+}
+
 /* ================= CAPA DE API ================= */
 function mapProducto(p){
   return {id:p.id, nombre:p.nombre, ref:p.referencia || p.codigo_celeste,
           modelo:p.modelos_compatibles || p.categoria || "Honda",
+          modelosRaw:p.modelos_compatibles || "",   // vacío si el parser no halló modelos
           categoria:p.categoria || "", marca:p.marca || "Honda",
           precio:parseFloat(p.precio), stock:p.stock,
-          foto: p.foto || null};  // foto elegida por Ana en el admin; null = mostrar placa
+          catImg: categoriaVisual(p.nombre),
+          foto: p.foto || null};  // foto elegida por Ana en el admin; null = placa/ilustración
 }
 async function apiBuscar(q){
   if(USAR_DEMO){
@@ -247,20 +280,33 @@ function renderGrid(lista){
   lista.forEach(p=>{
     const c = document.createElement("div");
     c.className = "card";
+    // Estado de stock como badge sobre la imagen (antes era una frase en el
+    // cuerpo): Disponible / Últimas N / Agotado.
+    const badge = p.stock<=0
+      ? `<span class="tag-stock out"><i data-lucide="circle-x" class="lucide"></i> Agotado</span>`
+      : p.stock<=4
+        ? `<span class="tag-stock">Últimas ${p.stock}</span>`
+        : `<span class="tag-stock ok">Disponible</span>`;
+    // Chip de modelo solo si el parser halló modelos reales (no el "categoria"
+    // genérico de Celeste tipo "Repuestos original").
+    const chip = p.modelosRaw
+      ? `<span class="tag">${esc(p.modelosRaw.split(",")[0].trim())}</span>` : "";
+    // Imagen: foto elegida por Ana > ilustración de categoría > placa.
+    const img = p.foto
+      ? `<img src="${esc(p.foto)}" alt="${esc(p.nombre)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">`
+      : p.catImg
+        ? `<img src="${esc(p.catImg)}" alt="" loading="lazy">`
+        : placaHtml(p);
     c.innerHTML = `
-      <div class="card-img">
-        ${p.foto ? `<span class="tag">${esc(p.modelo.split(",")[0])}</span>` : ""}
-        ${p.stock>0 && p.stock<=4 ? `<span class="tag-stock">Últimas ${p.stock}</span>` : ""}
-        ${p.stock<=0 ? `<span class="tag-stock" style="background:#6b7078"><i data-lucide="circle-x" class="lucide"></i> Agotado</span>` : ""}
-        ${p.foto
-          ? `<img src="${esc(p.foto)}" alt="${esc(p.nombre)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">`
-          : placaHtml(p)}
+      <div class="card-img${!p.foto && p.catImg ? " is-cat" : ""}">
+        ${chip}
+        ${badge}
+        ${img}
       </div>
       <div class="card-body">
         <h3 title="${esc(p.nombre)}">${esc(p.nombre)}</h3>
-        <div class="ref">Ref: ${esc(p.ref)}</div>
         <div class="precio">${fmt(p.precio)}</div>
-        <div class="stock">${p.stock>0 ? `<i data-lucide="check-circle" class="lucide"></i> ${p.stock} en stock` : `<span style="color:var(--rojo)"><i data-lucide="circle-x" class="lucide"></i> Agotado por ahora</span>`}</div>
+        <div class="ref">Ref ${esc(p.ref)}</div>
         <button onclick="cotizarDesdePagina(${p.id})"><i data-lucide="message-circle" class="lucide"></i> Cotizar</button>
       </div>`;
     grid.appendChild(c);
@@ -457,11 +503,14 @@ function clearButtons(){
   chat.querySelectorAll(".btn-group").forEach(g => g.remove());
 }
 function chatProdHtml(p, extra){
+  const cat = p.catImg || categoriaVisual(p.nombre);
   const miniatura = p.foto
     ? `<img src="${esc(p.foto)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:9px">`
-    : placaHtml(p);
+    : cat
+      ? `<img src="${esc(cat)}" alt="" loading="lazy" style="width:70%;height:70%;object-fit:contain">`
+      : placaHtml(p);
   return `<div class="chat-prod">
-    <div class="foto-tile">${miniatura}</div>
+    <div class="foto-tile${!p.foto && cat ? " is-cat" : ""}">${miniatura}</div>
     <div class="info">${extra}</div>
   </div>`;
 }
