@@ -2,9 +2,15 @@
 
 Interfaz propia (no el admin de Django) pensada para mostrador con celular:
 móvil primero, cero campos de texto libre en el flujo normal, todo con
-botones. Reutiliza el login de Django (auth) tal cual -- no hay usuarios,
-permisos ni sesiones nuevas. "Vendedor" = cualquier usuario con is_staff;
-"dueña" = is_superuser.
+botones. Reutiliza el login de Django (auth) tal cual -- no hay usuarios ni
+sesiones nuevas, pero el ACCESO no se apoya en is_staff/is_superuser
+reciclados:
+  - "Vendedor" = cuenta en el grupo GRUPO_VENDEDORES. Entra a la cola, NO al
+    resumen, y NO a is_staff -> NO entra a /admin/ tampoco (Django exige
+    is_staff ahí, y a propósito estas cuentas no lo tienen: is_staff abriría
+    el catálogo y la configuración del sitio, que no son del vendedor).
+  - "Dueña" = is_superuser. Entra a todo (cola, resumen, y /admin/ si además
+    tiene is_staff, que es lo que ya trae su cuenta de siempre).
 """
 import datetime
 from functools import wraps
@@ -22,6 +28,12 @@ from django.views.decorators.http import require_POST
 
 from .models import Cotizacion, ItemCotizacion, Producto
 
+# Nombre del grupo de Django (auth.Group) que marca a un usuario como
+# vendedor de mostrador. Lo crea la migración 0012_grupo_vendedores; agregar
+# o sacar vendedores es simplemente sumarlos/sacarlos de este grupo (desde
+# el admin -- Autenticación y autorización -> Grupos -- o por consola).
+GRUPO_VENDEDORES = "Vendedores"
+
 # Cotizaciones con intención de compra real (se muestran en la cola igual que
 # las demás, pero son las únicas que cuentan en los números comerciales del
 # resumen de la dueña). "web-agotado" queda afuera: es un aviso de "avísenme
@@ -35,15 +47,22 @@ def nombre_vendedor(user):
     return user.get_full_name() or user.username
 
 
-def staff_required(vista):
-    """Como login_required, pero además exige is_staff (cualquier vendedor de
-    mostrador). Sin sesión -> al login del panel, no al de /admin/. Sin
-    is_staff -> 403 en vez de delatar que el panel existe."""
+def _tiene_acceso_panel(user):
+    """Dueña (is_superuser, entra a todo) o vendedor (grupo Vendedores).
+    A propósito NO mira is_staff: esa bandera es la puerta de /admin/, un
+    permiso distinto que un vendedor de mostrador no tiene por qué tener."""
+    return user.is_superuser or user.groups.filter(name=GRUPO_VENDEDORES).exists()
+
+
+def acceso_panel_required(vista):
+    """Como login_required, pero además exige _tiene_acceso_panel. Sin sesión
+    -> al login del panel, no al de /admin/. Sin acceso -> 403 en vez de
+    delatar que el panel existe."""
     @wraps(vista)
     def envoltorio(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect(f"{reverse('panel_login')}?next={request.path}")
-        if not request.user.is_staff:
+        if not _tiene_acceso_panel(request.user):
             raise PermissionDenied("Esta cuenta no tiene acceso al panel de cotizaciones.")
         return vista(request, *args, **kwargs)
     return envoltorio
@@ -83,7 +102,7 @@ def _preparar(c):
     return c
 
 
-@staff_required
+@acceso_panel_required
 def cola(request):
     # Una sola consulta con el monto ya sumado (mismo patrón que
     # CotizacionAdmin.get_queryset, ver tienda/admin.py) + una segunda para
@@ -106,7 +125,7 @@ def cola(request):
 
 
 @require_POST
-@staff_required
+@acceso_panel_required
 def tomar(request, pk):
     # UPDATE condicionado por WHERE estado='nueva': atómico de por sí (una
     # sola sentencia SQL con su propia condición), sin select_for_update ni
@@ -128,7 +147,7 @@ def tomar(request, pk):
 
 
 @require_POST
-@staff_required
+@acceso_panel_required
 def vender(request, pk):
     # select_for_update + WHERE estado='tomada' vía chequeo explícito: en
     # Postgres (producción) bloquea la fila hasta el commit; en SQLite (local)
@@ -147,7 +166,7 @@ def vender(request, pk):
 
 
 @require_POST
-@staff_required
+@acceso_panel_required
 def perder(request, pk):
     motivos_validos = dict(Cotizacion.MOTIVOS_PERDIDA)
     motivo = request.POST.get("motivo", "")
@@ -180,7 +199,7 @@ def _pct(parte, total):
     return round(parte * 100 / total) if total else None
 
 
-@staff_required
+@acceso_panel_required
 def resumen(request):
     if not request.user.is_superuser:
         raise PermissionDenied("El resumen es solo para la dueña.")

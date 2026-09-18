@@ -7,6 +7,7 @@ from pathlib import Path
 from django.apps import apps as global_apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
@@ -681,11 +682,19 @@ class ResueltaEnTests(TestCase):
 
 
 def _vendedor(username="laura", **extra):
+    """Cuenta de vendedor: entra al panel por el grupo 'Vendedores', NO por
+    is_staff (esa bandera es la puerta de /admin/ -- ver GRUPO_VENDEDORES en
+    tienda/views_panel.py). Para la dueña, pasar is_superuser=True (y, si el
+    test también toca /admin/, is_staff=True aparte -- así se crea de verdad
+    con createsuperuser)."""
     User = get_user_model()
-    u, creado = User.objects.get_or_create(username=username, defaults={"is_staff": True, **extra})
+    u, creado = User.objects.get_or_create(username=username, defaults=extra)
     if creado:
         u.set_password("clave-segura-123")
         u.save()
+    if not u.is_superuser:
+        grupo, _ = Group.objects.get_or_create(name="Vendedores")
+        u.groups.add(grupo)
     return u
 
 
@@ -703,36 +712,57 @@ def _cotizacion_panel(**extra):
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 })
 class PanelPermisosTests(TestCase):
-    """Cola: cualquier is_staff. Resumen: solo is_superuser. Anónimo -> login
-    del panel (no el de /admin/)."""
+    """Cola: grupo 'Vendedores' (o is_superuser). Resumen: solo is_superuser.
+    Ninguno de los dos mira is_staff -- esa bandera es aparte, la puerta de
+    /admin/, y un vendedor de mostrador no la tiene. Anónimo -> login del
+    panel (no el de /admin/)."""
 
     def test_anonimo_va_al_login_del_panel(self):
         resp = self.client.get(reverse("panel_cola"))
         self.assertEqual(resp.status_code, 302)
         self.assertIn(reverse("panel_login"), resp.url)
 
-    def test_usuario_sin_staff_recibe_403(self):
+    def test_usuario_normal_sin_grupo_recibe_403(self):
         User = get_user_model()
         u = User.objects.create_user("cliente", password="x")
         self.client.force_login(u)
         resp = self.client.get(reverse("panel_cola"))
         self.assertEqual(resp.status_code, 403)
 
-    def test_vendedor_staff_entra_a_la_cola(self):
-        self.client.force_login(_vendedor())
+    def test_vendedor_entra_a_la_cola_sin_ser_staff(self):
+        vendedor = _vendedor()
+        self.assertFalse(vendedor.is_staff, "un vendedor no debe tener is_staff")
+        self.client.force_login(vendedor)
         resp = self.client.get(reverse("panel_cola"))
         self.assertEqual(resp.status_code, 200)
 
-    def test_vendedor_staff_no_superusuario_no_ve_resumen(self):
+    def test_vendedor_no_ve_resumen(self):
         self.client.force_login(_vendedor())
         resp = self.client.get(reverse("panel_resumen"))
         self.assertEqual(resp.status_code, 403)
+
+    def test_vendedor_no_entra_al_admin(self):
+        # is_staff=False -> Django lo manda al login del admin, no lo deja
+        # pasar aunque tenga sesión iniciada en el sitio.
+        self.client.force_login(_vendedor())
+        resp = self.client.get("/admin/")
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("/admin/login/", resp.url)
 
     def test_superusuario_ve_resumen(self):
         dueña = _vendedor("ana", is_superuser=True)
         self.client.force_login(dueña)
         resp = self.client.get(reverse("panel_resumen"))
         self.assertEqual(resp.status_code, 200)
+
+    def test_duena_entra_a_cola_resumen_y_admin(self):
+        # is_staff=True además de is_superuser=True: así queda una cuenta
+        # creada con createsuperuser de verdad, la única con acceso a todo.
+        dueña = _vendedor("ana2", is_superuser=True, is_staff=True)
+        self.client.force_login(dueña)
+        self.assertEqual(self.client.get(reverse("panel_cola")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("panel_resumen")).status_code, 200)
+        self.assertEqual(self.client.get("/admin/").status_code, 200)
 
     def test_login_tiene_identidad_de_marca_no_el_admin_generico(self):
         resp = self.client.get(reverse("panel_login"))
