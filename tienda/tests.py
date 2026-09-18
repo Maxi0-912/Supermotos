@@ -626,3 +626,316 @@ class MediaEnProduccionTests(TestCase):
         with override_settings(DEBUG=False):
             resp = self.client.get("/media/productos/no-existe.png")
         self.assertEqual(resp.status_code, 404)
+
+
+class ResueltaEnTests(TestCase):
+    """resuelta_en: se administra sola en save(), no la toca quien llama."""
+
+    def setUp(self):
+        self.p = _producto(precio=1500)
+
+    def _cotizacion(self):
+        c = Cotizacion.objects.create(nombre_cliente="Cliente", telefono="3001112233")
+        ItemCotizacion.objects.create(cotizacion=c, producto=self.p, cantidad=1, precio_unitario=1500)
+        return c
+
+    def test_vacio_mientras_no_se_resuelve(self):
+        c = self._cotizacion()
+        self.assertIsNone(c.resuelta_en)
+        c.estado = "tomada"; c.asesor = "Laura"; c.tomada_en = timezone.now(); c.save()
+        c.refresh_from_db()
+        self.assertIsNone(c.resuelta_en)
+
+    def test_se_marca_al_vender(self):
+        c = self._cotizacion()
+        antes = timezone.now()
+        c.estado = "vendida"; c.save()
+        c.refresh_from_db()
+        self.assertIsNotNone(c.resuelta_en)
+        self.assertGreaterEqual(c.resuelta_en, antes)
+
+    def test_se_marca_al_perder(self):
+        c = self._cotizacion()
+        c.estado = "perdida"; c.motivo_perdida = "precio"; c.save()
+        c.refresh_from_db()
+        self.assertIsNotNone(c.resuelta_en)
+
+    def test_se_limpia_si_se_reabre(self):
+        c = self._cotizacion()
+        c.estado = "perdida"; c.motivo_perdida = "precio"; c.save()
+        c.refresh_from_db()
+        self.assertIsNotNone(c.resuelta_en)
+        c.estado = "tomada"; c.save()
+        c.refresh_from_db()
+        self.assertIsNone(c.resuelta_en)
+
+    def test_no_se_reescribe_en_guardados_repetidos_del_mismo_estado(self):
+        c = self._cotizacion()
+        c.estado = "vendida"; c.save()
+        c.refresh_from_db()
+        primero = c.resuelta_en
+        c.notas_asesor = "cliente pidió factura"
+        c.save()
+        c.refresh_from_db()
+        self.assertEqual(c.resuelta_en, primero)
+
+
+def _vendedor(username="laura", **extra):
+    User = get_user_model()
+    u, creado = User.objects.get_or_create(username=username, defaults={"is_staff": True, **extra})
+    if creado:
+        u.set_password("clave-segura-123")
+        u.save()
+    return u
+
+
+def _cotizacion_panel(**extra):
+    base = dict(nombre_cliente="Cliente de prueba", telefono="3001234567", origen="web")
+    base.update(extra)
+    return Cotizacion.objects.create(**base)
+
+
+# las plantillas del panel usan {% static %} para las fuentes; en prod
+# usa el manifest de whitenoise (necesita collectstatic), en tests basta
+# el almacenamiento simple -- mismo patron que AvisosAdminTests.
+@override_settings(STORAGES={
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+})
+class PanelPermisosTests(TestCase):
+    """Cola: cualquier is_staff. Resumen: solo is_superuser. Anónimo -> login
+    del panel (no el de /admin/)."""
+
+    def test_anonimo_va_al_login_del_panel(self):
+        resp = self.client.get(reverse("panel_cola"))
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse("panel_login"), resp.url)
+
+    def test_usuario_sin_staff_recibe_403(self):
+        User = get_user_model()
+        u = User.objects.create_user("cliente", password="x")
+        self.client.force_login(u)
+        resp = self.client.get(reverse("panel_cola"))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_vendedor_staff_entra_a_la_cola(self):
+        self.client.force_login(_vendedor())
+        resp = self.client.get(reverse("panel_cola"))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_vendedor_staff_no_superusuario_no_ve_resumen(self):
+        self.client.force_login(_vendedor())
+        resp = self.client.get(reverse("panel_resumen"))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_superusuario_ve_resumen(self):
+        dueña = _vendedor("ana", is_superuser=True)
+        self.client.force_login(dueña)
+        resp = self.client.get(reverse("panel_resumen"))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_login_tiene_identidad_de_marca_no_el_admin_generico(self):
+        resp = self.client.get(reverse("panel_login"))
+        self.assertContains(resp, "IBM Plex Sans")
+        self.assertContains(resp, "Panel de cotizaciones")
+
+
+# las plantillas del panel usan {% static %} para las fuentes; en prod
+# usa el manifest de whitenoise (necesita collectstatic), en tests basta
+# el almacenamiento simple -- mismo patron que AvisosAdminTests.
+@override_settings(STORAGES={
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+})
+class PanelColaTests(TestCase):
+    """Tomar / vender / perder -- los tres verbos del flujo diario."""
+
+    def setUp(self):
+        self.laura = _vendedor("laura")
+        self.pedro = _vendedor("pedro")
+        self.p = _producto(precio=20000)
+
+    def _item(self, c, cantidad=1):
+        ItemCotizacion.objects.create(cotizacion=c, producto=self.p, cantidad=cantidad,
+                                       precio_unitario=self.p.precio)
+
+    def test_cola_ordena_sin_atender_de_mas_vieja_a_mas_nueva(self):
+        c1 = _cotizacion_panel(nombre_cliente="Primera")
+        c2 = _cotizacion_panel(nombre_cliente="Segunda")
+        Cotizacion.objects.filter(pk=c1.pk).update(
+            creada=timezone.now() - timedelta(hours=2))
+        self.client.force_login(self.laura)
+        resp = self.client.get(reverse("panel_cola"))
+        nombres = [c.nombre_cliente for c in resp.context["sin_atender"]]
+        self.assertEqual(nombres, ["Primera", "Segunda"])
+
+    def test_vendida_y_perdida_no_aparecen_en_la_cola(self):
+        _cotizacion_panel(nombre_cliente="Nueva")
+        vendida = _cotizacion_panel(nombre_cliente="Ya vendida")
+        vendida.estado = "tomada"; vendida.asesor = "Laura"; vendida.tomada_en = timezone.now(); vendida.save()
+        vendida.estado = "vendida"; vendida.save()
+        self.client.force_login(self.laura)
+        resp = self.client.get(reverse("panel_cola"))
+        todas = [c.nombre_cliente for c in resp.context["sin_atender"] + resp.context["en_curso"]]
+        self.assertIn("Nueva", todas)
+        self.assertNotIn("Ya vendida", todas)
+
+    def test_tomar_asigna_al_usuario_actual_sin_pedirle_nada(self):
+        c = _cotizacion_panel()
+        self.client.force_login(self.laura)
+        self.client.post(reverse("panel_tomar", args=[c.pk]))
+        c.refresh_from_db()
+        self.assertEqual(c.estado, "tomada")
+        self.assertEqual(c.asesor, "laura")  # sin nombre completo, cae al username
+        self.assertIsNotNone(c.tomada_en)
+
+    def test_dos_vendedores_no_pueden_tomar_la_misma(self):
+        """La condición de carrera: el UPDATE con WHERE estado='nueva' hace
+        que la segunda solicitud no encuentre fila que actualizar."""
+        c = _cotizacion_panel()
+        self.client.force_login(self.laura)
+        self.client.post(reverse("panel_tomar", args=[c.pk]))
+        self.client.force_login(self.pedro)
+        resp = self.client.post(reverse("panel_tomar", args=[c.pk]), follow=True)
+        c.refresh_from_db()
+        self.assertEqual(c.asesor, "laura")  # sigue siendo de laura
+        self.assertContains(resp, "laura")   # el mensaje le avisa a pedro quién la tiene
+
+    def test_cualquier_vendedor_puede_vender_una_tomada_por_otro(self):
+        c = _cotizacion_panel()
+        self._item(c)
+        c.estado = "tomada"; c.asesor = "laura"; c.tomada_en = timezone.now(); c.save()
+        self.client.force_login(self.pedro)  # pedro NO la tomó
+        self.client.post(reverse("panel_vender", args=[c.pk]))
+        c.refresh_from_db()
+        self.assertEqual(c.estado, "vendida")
+        self.assertIsNotNone(c.resuelta_en)
+
+    def test_perder_exige_motivo_de_la_lista(self):
+        c = _cotizacion_panel()
+        c.estado = "tomada"; c.asesor = "laura"; c.tomada_en = timezone.now(); c.save()
+        self.client.force_login(self.laura)
+        self.client.post(reverse("panel_perder", args=[c.pk]), {"motivo": "no-existe"})
+        c.refresh_from_db()
+        self.assertEqual(c.estado, "tomada")  # no se movió
+
+        self.client.post(reverse("panel_perder", args=[c.pk]), {"motivo": "precio"})
+        c.refresh_from_db()
+        self.assertEqual(c.estado, "perdida")
+        self.assertEqual(c.motivo_perdida, "precio")
+
+    def test_no_se_puede_resolver_una_que_no_esta_tomada(self):
+        c = _cotizacion_panel()  # sigue "nueva"
+        self.client.force_login(self.laura)
+        self.client.post(reverse("panel_vender", args=[c.pk]))
+        c.refresh_from_db()
+        self.assertEqual(c.estado, "nueva")
+
+
+# las plantillas del panel usan {% static %} para las fuentes; en prod
+# usa el manifest de whitenoise (necesita collectstatic), en tests basta
+# el almacenamiento simple -- mismo patron que AvisosAdminTests.
+@override_settings(STORAGES={
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+})
+class PanelSinNMasUnoTests(TestCase):
+    """La cola no debe crecer en consultas con la cantidad de cotizaciones/ítems."""
+
+    def test_consultas_acotadas(self):
+        vendedor = _vendedor("laura")
+        p1, p2 = _producto(precio=10000), _producto(precio=20000)
+        for i in range(6):
+            c = _cotizacion_panel(nombre_cliente=f"Cliente {i}", telefono=f"300000000{i}")
+            ItemCotizacion.objects.create(cotizacion=c, producto=p1, cantidad=1, precio_unitario=10000)
+            ItemCotizacion.objects.create(cotizacion=c, producto=p2, cantidad=2, precio_unitario=20000)
+        self.client.force_login(vendedor)
+        with CaptureQueriesContext(connection) as cap:
+            resp = self.client.get(reverse("panel_cola"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertLess(len(cap), 10, "no debería escalar con la cantidad de cotizaciones/ítems")
+
+
+# las plantillas del panel usan {% static %} para las fuentes; en prod
+# usa el manifest de whitenoise (necesita collectstatic), en tests basta
+# el almacenamiento simple -- mismo patron que AvisosAdminTests.
+@override_settings(STORAGES={
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+})
+class PanelResumenTests(TestCase):
+    """Números del resumen: comerciales vs. web-agotado, motivos, compras, vendedores."""
+
+    def setUp(self):
+        self.dueña = _vendedor("ana", is_superuser=True)
+        self.p = _producto(precio=15000)
+
+    def _vendida(self, asesor, cantidad=1, **extra):
+        c = _cotizacion_panel(**extra)
+        ItemCotizacion.objects.create(cotizacion=c, producto=self.p, cantidad=cantidad, precio_unitario=15000)
+        c.estado = "tomada"; c.asesor = asesor; c.tomada_en = timezone.now(); c.save()
+        c.estado = "vendida"; c.save()
+        return c
+
+    def _perdida(self, motivo, **extra):
+        c = _cotizacion_panel(**extra)
+        ItemCotizacion.objects.create(cotizacion=c, producto=self.p, cantidad=1, precio_unitario=15000)
+        c.estado = "tomada"; c.asesor = "laura"; c.tomada_en = timezone.now(); c.save()
+        c.estado = "perdida"; c.motivo_perdida = motivo; c.save()
+        return c
+
+    def test_web_agotado_no_cuenta_como_entrada_comercial_pero_si_en_la_mora(self):
+        _cotizacion_panel(origen="web-agotado")  # sigue "nueva"
+        self.client.force_login(self.dueña)
+        resp = self.client.get(reverse("panel_resumen"))
+        self.assertEqual(resp.context["entraron"], 0)
+        self.assertEqual(resp.context["sin_atender_ahora"], 1)
+
+    def test_vendidas_y_por_vendedor(self):
+        self._vendida("laura", cantidad=2)
+        self._vendida("laura", cantidad=1)
+        self._vendida("pedro", cantidad=1)
+        self.client.force_login(self.dueña)
+        resp = self.client.get(reverse("panel_resumen"))
+        self.assertEqual(resp.context["vendidas"], 3)
+        por_vendedor = {f["asesor"]: (f["monto"], f["n"]) for f in resp.context["por_vendedor"]}
+        self.assertEqual(por_vendedor["laura"], (45000, 2))  # 2*15000 + 1*15000, 2 ventas
+        self.assertEqual(por_vendedor["pedro"], (15000, 1))
+
+    def test_motivos_de_perdida_agrupados(self):
+        self._perdida("sin_stock")
+        self._perdida("sin_stock")
+        self._perdida("precio")
+        self.client.force_login(self.dueña)
+        resp = self.client.get(reverse("panel_resumen"))
+        motivos = {f["motivo_perdida"]: f["n"] for f in resp.context["motivos_conteo"]}
+        self.assertEqual(motivos["sin_stock"], 2)
+        self.assertEqual(motivos["precio"], 1)
+
+    def test_lista_de_compras_cruza_agotado_y_perdidas_sin_stock(self):
+        c1 = _cotizacion_panel(origen="web-agotado")
+        ItemCotizacion.objects.create(cotizacion=c1, producto=self.p, cantidad=1, precio_unitario=15000)
+        self._perdida("sin_stock")  # mismo producto
+        self.client.force_login(self.dueña)
+        resp = self.client.get(reverse("panel_resumen"))
+        compras = {f["producto"].pk: f["n"] for f in resp.context["compras"]}
+        self.assertEqual(compras[self.p.pk], 2)
+
+    def test_periodo_filtra_por_cuando_se_resolvio_no_por_cuando_entro(self):
+        # 400 días atrás cae fuera de hoy/semana/mes sin importar qué día se
+        # corra el test -- evita una fecha "casi segura" que a veces coincida.
+        vieja = self._vendida("laura")
+        hace_mucho = timezone.now() - timedelta(days=400)
+        Cotizacion.objects.filter(pk=vieja.pk).update(creada=hace_mucho, resuelta_en=hace_mucho)
+        self.client.force_login(self.dueña)
+        for periodo in ("hoy", "semana", "mes"):
+            resp = self.client.get(reverse("panel_resumen"), {"periodo": periodo})
+            self.assertEqual(resp.context["vendidas"], 0, periodo)
+
+        # pero una resuelta HOY sí debe verse en los tres, aunque haya
+        # entrado hace 400 días -- resuelta_en manda, no creada.
+        reciente = self._vendida("laura")
+        Cotizacion.objects.filter(pk=reciente.pk).update(creada=hace_mucho)
+        for periodo in ("hoy", "semana", "mes"):
+            resp = self.client.get(reverse("panel_resumen"), {"periodo": periodo})
+            self.assertEqual(resp.context["vendidas"], 1, periodo)

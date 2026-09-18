@@ -1,0 +1,125 @@
+{% extends "panel/shell.html" %}
+{% load moneda %}
+{% block titulo %}Cola{% endblock %}
+{% block estilos %}
+<style>
+  .wrap{padding-top:14px;padding-bottom:8px}
+  .seccion-titulo{
+    font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--gris);margin:20px 0 10px;
+  }
+  .seccion-titulo:first-child{margin-top:0}
+  .seccion-titulo .n{color:var(--negro)}
+  .vacio{color:var(--gris);font-size:13.5px;padding:10px 0 18px}
+
+  .tarjeta{
+    background:#fff;border:1px solid var(--linea);border-radius:var(--radio);
+    padding:13px 14px;margin-bottom:10px;
+  }
+  .tarjeta .meta{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+  .badge{
+    font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    padding:3px 8px;border-radius:20px;
+  }
+  .badge-moto{background:#eef0f3;color:var(--negro)}
+  .badge-agotado{background:#fdf0dd;color:var(--ambar)}
+  .badge-tomada-yo{background:#e4f3ea;color:var(--verde)}
+  .badge-tomada-otro{background:var(--linea);color:var(--gris)}
+  .hace{font-size:12px;color:var(--gris-claro)}
+  .cliente{font-weight:700;font-size:15px;margin-bottom:2px}
+  .items{font-size:13px;color:var(--gris);margin-bottom:2px}
+  .items li{list-style:none}
+  .monto{font-weight:700;color:var(--rojo);font-size:15px;margin-bottom:10px}
+  .acciones{display:flex;gap:8px;flex-wrap:wrap}
+  .acciones form{flex:1;min-width:120px}
+  .acciones .btn{width:100%}
+  details.perder{margin-top:8px}
+  details.perder summary{
+    list-style:none;cursor:pointer;text-align:center;
+  }
+  details.perder summary::-webkit-details-marker{display:none}
+  .motivos{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+  .motivos form{width:100%}
+  .motivos .btn{width:100%;font-size:11.5px;padding:9px 6px}
+</style>
+{% endblock %}
+{% block contenido %}
+<div class="wrap">
+
+  <div class="seccion-titulo">Sin atender · <span class="n">{{ sin_atender|length }}</span></div>
+  {% if not sin_atender %}
+    <p class="vacio">Nadie esperando. 🎉</p>
+  {% endif %}
+  {% for c in sin_atender %}
+  <div class="tarjeta">
+    <div class="meta">
+      {% if c.origen == "moto" %}<span class="badge badge-moto">🏍️ Moto</span>{% endif %}
+      {% if c.origen == "web-agotado" %}<span class="badge badge-agotado">🔔 Avisar stock</span>{% endif %}
+      <span class="hace">hace {{ c.creada|timesince }}</span>
+    </div>
+    <div class="cliente">{{ c.nombre_cliente|default:"Cliente sin nombre" }}</div>
+    {% if c.items.all %}
+      <ul class="items">
+        {% for it in c.items.all %}<li>· {{ it.producto.nombre_publico }}{% if it.cantidad > 1 %} ×{{ it.cantidad }}{% endif %}</li>{% endfor %}
+      </ul>
+    {% endif %}
+    {% if c.monto %}<div class="monto">{{ c.monto|pesos }}</div>{% endif %}
+    <div class="acciones">
+      {% if c.wa_link %}<a class="btn btn-wa btn-chico" href="{{ c.wa_link }}" target="_blank" rel="noopener">💬 WhatsApp</a>{% endif %}
+      <form method="post" action="{% url 'panel_tomar' c.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-negro btn-chico">Yo la atiendo</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="seccion-titulo">En curso · <span class="n">{{ en_curso|length }}</span></div>
+  {% if not en_curso %}
+    <p class="vacio">Nada en curso ahora mismo.</p>
+  {% endif %}
+  {% for c in en_curso %}
+  <div class="tarjeta">
+    <div class="meta">
+      {% if c.origen == "moto" %}<span class="badge badge-moto">🏍️ Moto</span>{% endif %}
+      {% if c.origen == "web-agotado" %}<span class="badge badge-agotado">🔔 Avisar stock</span>{% endif %}
+      {% if c.asesor == nombre_vendedor %}
+        <span class="badge badge-tomada-yo">La tomé yo</span>
+      {% else %}
+        <span class="badge badge-tomada-otro">Tomada por {{ c.asesor }}</span>
+      {% endif %}
+      <span class="hace">hace {{ c.tomada_en|timesince }}</span>
+    </div>
+    <div class="cliente">{{ c.nombre_cliente|default:"Cliente sin nombre" }}</div>
+    {% if c.items.all %}
+      <ul class="items">
+        {% for it in c.items.all %}<li>· {{ it.producto.nombre_publico }}{% if it.cantidad > 1 %} ×{{ it.cantidad }}{% endif %}</li>{% endfor %}
+      </ul>
+    {% endif %}
+    {% if c.monto %}<div class="monto">{{ c.monto|pesos }}</div>{% endif %}
+    <div class="acciones">
+      {% if c.wa_link %}<a class="btn btn-wa btn-chico" href="{{ c.wa_link }}" target="_blank" rel="noopener">💬 WhatsApp</a>{% endif %}
+    </div>
+    <div class="acciones" style="margin-top:8px">
+      <form method="post" action="{% url 'panel_vender' c.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-verde btn-chico">✅ Vendida</button>
+      </form>
+      <details class="perder">
+        <summary><span class="btn btn-linea btn-chico">❌ Perdida</span></summary>
+        <div class="motivos">
+          {% for valor, etiqueta in motivos %}
+          <form method="post" action="{% url 'panel_perder' c.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="motivo" value="{{ valor }}">
+            <button type="submit" class="btn btn-linea">{{ etiqueta }}</button>
+          </form>
+          {% endfor %}
+        </div>
+      </details>
+    </div>
+  </div>
+  {% endfor %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "panel/shell.html" %}
+{% load moneda %}
+{% block titulo %}Resumen{% endblock %}
+{% block estilos %}
+<style>
+  .wrap{padding-top:12px;padding-bottom:8px}
+  .periodos{display:flex;gap:6px;margin-bottom:16px}
+  .periodos a{
+    flex:1;text-align:center;padding:9px 6px;border-radius:20px;font-size:12.5px;font-weight:700;
+    letter-spacing:.02em;text-transform:uppercase;text-decoration:none;
+    background:var(--linea);color:var(--gris);
+  }
+  .periodos a.activo{background:var(--negro);color:#fff}
+
+  .alerta-mora{
+    background:#fbe4e4;color:var(--rojo-osc);border-radius:10px;padding:12px 14px;
+    font-weight:700;font-size:14px;margin-bottom:16px;display:flex;align-items:center;gap:8px;
+  }
+  .alerta-mora.ok{background:#e4f3ea;color:var(--verde)}
+
+  .bloque{margin-bottom:22px}
+  .bloque h2{
+    font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--gris);margin-bottom:10px;
+  }
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media(min-width:480px){.kpis{grid-template-columns:repeat(4,1fr)}}
+  .kpi{background:#fff;border:1px solid var(--linea);border-radius:10px;padding:12px}
+  .kpi .n{font-size:22px;font-weight:700;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+  .kpi .l{font-size:11px;color:var(--gris);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+  .kpi.vendidas .n{color:var(--verde)}
+  .kpi.perdidas .n{color:var(--rojo)}
+
+  .fila-motivo{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:13px}
+  .fila-motivo .etiqueta{width:130px;flex-shrink:0;color:var(--gris)}
+  .fila-motivo .barra{flex:1;background:var(--linea);border-radius:6px;height:16px;overflow:hidden}
+  .fila-motivo .barra span{display:block;height:100%;background:var(--rojo);border-radius:6px}
+  .fila-motivo .n{width:22px;text-align:right;font-weight:700;font-family:var(--font-mono)}
+
+  .lista{background:#fff;border:1px solid var(--linea);border-radius:10px;overflow:hidden}
+  .lista .fila{
+    display:flex;justify-content:space-between;align-items:center;padding:11px 13px;
+    border-bottom:1px solid var(--linea);font-size:13.5px;
+  }
+  .lista .fila:last-child{border-bottom:none}
+  .lista .fila .n{font-weight:700;font-family:var(--font-mono);color:var(--gris)}
+  .lista .fila .monto{font-weight:700;color:var(--rojo);font-family:var(--font-mono)}
+  .vacio{color:var(--gris);font-size:13px;padding:10px 0}
+</style>
+{% endblock %}
+{% block contenido %}
+<div class="wrap">
+  <div class="periodos">
+    <a href="?periodo=hoy" class="{% if periodo == 'hoy' %}activo{% endif %}">Hoy</a>
+    <a href="?periodo=semana" class="{% if periodo == 'semana' %}activo{% endif %}">Semana</a>
+    <a href="?periodo=mes" class="{% if periodo == 'mes' %}activo{% endif %}">Mes</a>
+  </div>
+
+  <div class="alerta-mora {% if sin_atender_ahora == 0 %}ok{% endif %}">
+    {% if sin_atender_ahora == 0 %}
+      ✅ Sin cotizaciones esperando ahora mismo
+    {% else %}
+      ⚠️ {{ sin_atender_ahora }} cotización{{ sin_atender_ahora|pluralize:"es" }} sin atender AHORA
+    {% endif %}
+  </div>
+
+  <div class="bloque">
+    <h2>Este período</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="n">{{ entraron }}</div><div class="l">Entraron</div></div>
+      <div class="kpi vendidas"><div class="n">{{ vendidas }}</div><div class="l">Vendidas{% if pct_vendidas is not None %} · {{ pct_vendidas }}%{% endif %}</div></div>
+      <div class="kpi perdidas"><div class="n">{{ perdidas }}</div><div class="l">Perdidas{% if pct_perdidas is not None %} · {{ pct_perdidas }}%{% endif %}</div></div>
+      <div class="kpi"><div class="n">{{ sin_atender_periodo }}</div><div class="l">Sin atender</div></div>
+    </div>
+  </div>
+
+  <div class="bloque">
+    <h2>Motivos de pérdida</h2>
+    {% if motivos_conteo %}
+      {% for fila in motivos_conteo %}
+      <div class="fila-motivo">
+        <span class="etiqueta">{{ fila.etiqueta }}</span>
+        <span class="barra"><span style="width:{% widthratio fila.n max_motivo 100 %}%"></span></span>
+        <span class="n">{{ fila.n }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="vacio">Nada perdido en este período.</p>
+    {% endif %}
+  </div>
+
+  <div class="bloque">
+    <h2>📋 Lo que piden y no hay</h2>
+    {% if compras %}
+      <div class="lista">
+        {% for fila in compras %}
+        <div class="fila">
+          <span>{{ fila.producto.nombre_publico }}</span>
+          <span class="n">{{ fila.n }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="vacio">No hay pedidos de productos agotados en este período.</p>
+    {% endif %}
+  </div>
+
+  <div class="bloque">
+    <h2>Ventas por vendedor</h2>
+    {% if por_vendedor %}
+      <div class="lista">
+        {% for fila in por_vendedor %}
+        <div class="fila">
+          <span>{{ fila.asesor }} · {{ fila.n }} venta{{ fila.n|pluralize:"s" }}</span>
+          <span class="monto">{{ fila.monto|pesos }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="vacio">Nadie vendió todavía en este período.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

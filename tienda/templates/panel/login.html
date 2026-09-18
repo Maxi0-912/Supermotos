@@ -1,0 +1,51 @@
+{% extends "panel/base.html" %}
+{% block titulo %}Entrar{% endblock %}
+{% block estilos %}
+<style>
+  body{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+  .caja-login{
+    width:100%;max-width:340px;background:#fff;border-radius:var(--radio);
+    border-top:4px solid var(--rojo);padding:28px 24px;box-shadow:0 10px 30px rgba(17,18,22,.12);
+  }
+  .caja-login .marca{
+    font-weight:700;font-size:15px;letter-spacing:.02em;text-transform:uppercase;
+    text-align:center;margin-bottom:4px;
+  }
+  .caja-login .marca em{color:var(--rojo);font-style:normal}
+  .caja-login h1{
+    font-size:13px;color:var(--gris);text-align:center;font-weight:500;
+    text-transform:none;margin-bottom:22px;
+  }
+  .campo{margin-bottom:14px}
+  .campo label{display:block;font-size:12.5px;font-weight:600;color:var(--gris);margin-bottom:5px}
+  .campo input{
+    width:100%;padding:11px 12px;border:1.5px solid var(--linea);border-radius:8px;font-size:15px;
+  }
+  .campo input:focus{outline:2px solid var(--rojo);outline-offset:1px;border-color:var(--rojo)}
+  .errores{background:#fbe4e4;color:var(--rojo-osc);padding:9px 12px;border-radius:8px;
+    font-size:13px;margin-bottom:14px}
+  .caja-login .btn{width:100%;margin-top:6px;padding:13px}
+</style>
+{% endblock %}
+{% block cuerpo %}
+<div class="caja-login">
+  <div class="marca">Super<em>Motos</em> La 4ta</div>
+  <h1>Panel de cotizaciones</h1>
+  {% if form.non_field_errors or form.errors %}
+    <div class="errores">Usuario o contraseña incorrectos.</div>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    <div class="campo">
+      <label for="id_username">Usuario</label>
+      <input type="text" name="username" id="id_username" autocomplete="username" autofocus required>
+    </div>
+    <div class="campo">
+      <label for="id_password">Contraseña</label>
+      <input type="password" name="password" id="id_password" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="btn btn-rojo">Entrar</button>
+  </form>
+</div>
+{% endblock %}
